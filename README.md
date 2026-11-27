@@ -1,42 +1,48 @@
 # MonaZip
 
-MonaZip, SQLite veritabanları ve metin dosyaları için yerel, kayıpsız bir sıkıştırma aracıdır. Bütün dosyayı standart bir Zstandard akışı olarak sıkıştırır. Karşılaştırma sırasında aynı kaynaktan gzip ve tek girdili ZIP arşivleri oluşturur. RAR aracı kullanılabiliyorsa RAR5 arşivi de oluşturur. Ölçülen tüm çıktılar açılır ve kaynakla bayt bayt karşılaştırılır.
+MonaZip is a local, lossless compression tool for SQLite databases and text files. It creates standard Zstandard (`.zst`) archives, restores them, and compares their size and performance with gzip, ZIP, and optional RAR5. It includes a macOS desktop app and a command-line interface.
 
-## macOS uygulaması
+## Desktop app
 
-Apple Silicon paketi Finder’da `target/release/bundle/macos/MonaZip.app` konumundadır. Paket yerel çalıştırma için ad hoc imzalıdır.
+Select or drop a SQLite or text file, choose a compression mode, and click **Sıkıştır ve karşılaştır** (Compress and compare). Use **.zst kaydet** to save the verified archive or **JSON kaydet** to export the measurements.
+
+To restore a file, click **.zst aç** (Open .zst), select a `.zst` or `.zstd` archive, and choose a new output path. The app suggests a name by removing the archive extension.
+
+SQLite files are recognized by their header. Common text formats include SQL dumps, TXT, CSV, TSV, JSON, JSONL, XML, YAML, HTML, and logs. MonaZip processes the bytes of the selected file. For a consistent copy of a live SQLite database, use a backup produced by SQLite.
+
+## How it works
+
+- **Streaming compression.** The Rust engine reads the source in chunks and feeds a single Zstandard stream. Zstandard represents repeated byte sequences using references to earlier data. Levels 3, 6, 9, 15, and 19 trade compression time for archive size. The desktop app also offers level 9 with two compression workers, with or without a 128 MiB long-distance matching window. The larger window can find repetitions farther apart and can increase memory use.
+- **Lossless verification.** MonaZip includes a checksum in its Zstandard frames. During a comparison it decompresses every measured archive and compares the result byte for byte with the source. Saving and restoring use a temporary file and publish the result to a new path after the operation succeeds.
+- **Real format comparisons.** gzip and single-entry ZIP use DEFLATE level 6. When the official `rar` executable is available, MonaZip also creates a RAR5 archive at level 3 with one worker. Size includes archive headers. Compression time includes reading the source and writing the temporary archive. Decompression time includes the byte comparison. RAR timings also include launching the external process.
+- **Experimental block encoding.** The CLI research mode samples block sizes and looks for useful distances between related bytes. It tries reversible transforms such as delta encoding, XOR, transposition, and bit shuffling. It chooses the smallest measured representation for each block, including metadata, then decodes the result and checks it against the source. [Research notes](MonaZip-PROJECT.md)
+
+The desktop interface uses Tauri and React with TypeScript. The desktop app and CLI share the same Rust compression and extraction code.
+
+## Command line
 
 ```sh
-open target/release/bundle/macos/MonaZip.app
+# Compare archive sizes and timings
+./target/release/monazip database.sqlite
+./target/release/monazip events.jsonl --json --quiet
+
+# Create a verified archive
+./target/release/monazip database.sqlite --compress-to database.sqlite.zst
+
+# Restore the original bytes
+./target/release/monazip database.sqlite.zst --extract-to restored.sqlite
+
+# Run the experimental block encoder with the original fixed settings
+./target/release/monazip --experimental sample.bin --block-size 65536 --fixed-strides
 ```
 
-SQLite veya metin dosyasını seçin ya da sürükleyip bırakın. **Sıkıştır ve karşılaştır** düğmesi ölçülen biçimlerin boyutlarını ve sürelerini gösterir. **.zst kaydet** doğrulanmış arşivi, **JSON kaydet** ölçümleri dışa aktarır. Hızlı, Dengeli ve Yoğun modlar sırasıyla Zstd 3, 6 ve 9 kullanır. Arşiv modunda Zstd 15 ve 19 seçenekleri de vardır.
+`--compress-to` runs Zstandard encoding and verification directly. Add `--json` or `--output report.json` to run and report the other format comparisons too. Use `--zstd-level` to choose a compression level. Press **Ctrl+C** to cancel compression, verification, or extraction.
 
-**.zst aç** düğmesiyle bir Zstandard arşivi seçin ve dönecek dosyanın konumunu belirtin. MonaZip, `.zst` veya `.zstd` uzantısını kaldırarak bir ad önerir. Açılan veriyi yeni bir dosyaya yazar.
+For RAR5 comparisons, install the official `rar` executable. MonaZip searches common install locations and the system path. Set `MONAZIP_RAR_PATH=/absolute/path/to/rar` to specify a different executable. The report shows RAR availability. [RARLAB downloads](https://www.rarlab.com/download.htm)
 
-SQLite dosyaları dosya başlığından tanınır. Metin için TXT, MD, RST, SQL, CSV, TSV, JSON, JSONL, NDJSON, XML, YAML, TOML, INI, LOG ve HTML uzantıları desteklenir. SQLite verisi seçilen dosyanın baytları olarak işlenir. Tutarlı bir canlı veritabanı kopyası gerektiğinde SQLite’ın ürettiği yedek dosyayı seçin.
+## Build from source
 
-Zstd 9 için iki iş parçacığı ve iki iş parçacığına ek 128 MiB uzak eşleşme seçenekleri de vardır. Sonuç ekranı ve JSON raporu kullanılan ayarı gösterir. Uzak eşleşme daha fazla bellek kullanabilir. Bu seçenekler standart `.zst` çıktısı üretir.
-
-## CLI
-
-```sh
-# Boyutları ve süreleri karşılaştır
-./target/release/monazip veritabani.sqlite
-./target/release/monazip olaylar.jsonl --json --quiet
-
-# Doğrulanmış .zst dosyasını doğrudan kaydet
-./target/release/monazip veritabani.sqlite --compress-to veritabani.sqlite.zst
-
-# MonaZip ile aç
-./target/release/monazip veritabani.sqlite.zst --extract-to geri-yuklenen.sqlite
-```
-
-`--compress-to` tek başına sıkıştırma ve Zstd doğrulaması yapar. Aynı komutta `--json` veya `--output rapor.json` da verilirse gzip, ZIP ve varsa RAR karşılaştırması çalışır. Yeni çıktı yolları kullanılır. `Ctrl+C` sıkıştırmayı veya doğrulamayı iptal eder ve süreç 130 koduyla çıkar.
-
-## Kaynaktan derleme
-
-Bu paket Rust 1.100, Node.js 25 ve Xcode ile derlendi. Windows ve Linux için Tauri’nin platforma özgü bağımlılıkları gerekir. [Tauri önkoşulları](https://v2.tauri.app/start/prerequisites/)
+The macOS build was tested with Rust 1.100, Node.js 25, and Xcode. Tauri lists the platform dependencies for macOS, Windows, and Linux. [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/)
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -48,18 +54,16 @@ cargo test --release --locked -p monazip-desktop
 npm run tauri --prefix app -- build --bundles app -- --locked
 ```
 
-Bu çalışma alanındaki bağımlılıklarla çevrimdışı derleme için proje kökünde `export CARGO_HOME="$PWD/.setup/cargo" CARGO_NET_OFFLINE=true` kullanabilirsiniz.
-
-## RAR karşılaştırması
-
-MonaZip RAR5 karşılaştırmasında resmî `rar` komutunu seviye 3 ve tek iş parçacığıyla çalıştırır. Bu çalışma alanında Apple Silicon için RARLAB 7.23 deneme sürümü `.setup/rar/rar/rar` konumunda hazırdır. Uygulama ayrıca sistemde kurulu komutu arar. CLI’da farklı bir kurulum kullanmak için `MONAZIP_RAR_PATH=/tam/yol/rar` verilebilir. RAR komutu bulunamazsa rapordaki RAR alanı boş kalır ve durum gösterilir. [RARLAB indirmeleri](https://www.rarlab.com/download.htm)
-
-## Ölçümler
-
-gzip ve ZIP karşılaştırmaları DEFLATE seviye 6 ile yapılır. Arşiv başlıkları boyuta dahildir. RAR sürelerine harici işlemin başlatılması dahildir. Sıkıştırma süresi kaynak okuma ve geçici arşiv yazmayı, açma ve doğrulama süresi ise arşivi açıp kaynakla karşılaştırmayı kapsar. [Benchmark notları](benchmarks/README.md)
+The macOS build produces an app bundle with an ad hoc signature for local use.
 
 ```sh
-python3 benchmarks/db_text.py dosya.sqlite dokum.sql rapor.csv
+open target/release/bundle/macos/MonaZip.app
 ```
 
-Önceki stride ve blok boyutu araştırması CLI’da `--experimental` ile erişilebilir. Örneğin `./target/release/monazip --experimental dosya.bin --block-size 65536 --fixed-strides` başlangıçtaki sabit ayarları kullanır. [Araştırma tasarımı](MonaZip-PROJECT.md)
+## Benchmarks
+
+On the nine SQLite and text files in the checked-in benchmark, MonaZip at Zstd level 6 produced **962,242 bytes** in total. gzip produced **1,108,902 bytes**, ZIP **1,109,826 bytes**, and RAR5 **843,701 bytes**. MonaZip's aggregate compression time was **33.21 ms** on the tested Apple Silicon Mac. Results are specific to the files, machine, and levels used. [Benchmark results and methodology](benchmarks/README.md)
+
+```sh
+python3 benchmarks/db_text.py database.sqlite dump.sql report.csv
+```
