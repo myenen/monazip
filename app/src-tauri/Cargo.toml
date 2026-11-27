@@ -1,0 +1,21 @@
+[package]
+name = "monazip-desktop"
+version.workspace = true
+edition.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+monazip-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+
+[features]
+custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }

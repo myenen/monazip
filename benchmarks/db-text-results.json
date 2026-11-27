@@ -1,0 +1,397 @@
+{
+  "system": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "runs_per_file": 5,
+  "summary": {
+    "monazip": {
+      "bytes": 962242,
+      "compress_us": 33210,
+      "verify_us": 4021
+    },
+    "gzip": {
+      "bytes": 1108902,
+      "compress_us": 39904,
+      "verify_us": 6150
+    },
+    "zip": {
+      "bytes": 1109826,
+      "compress_us": 39487,
+      "verify_us": 6310
+    },
+    "rar": {
+      "bytes": 843701,
+      "compress_us": 434259,
+      "verify_us": 51936
+    }
+  },
+  "files": [
+    {
+      "sample": "chinook.sqlite",
+      "sha256": "7651ba378ac2fcd0dfc3c66fb101f7a7eed3ba39a612ec642b96e20702061f15",
+      "kind": "sqlite",
+      "original_bytes": 1007616,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 328078,
+        "compress_us": 8450,
+        "verify_us": 1178
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 421797,
+        "compress_us": 12082,
+        "verify_us": 2154
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 421905,
+        "compress_us": 11780,
+        "verify_us": 2068
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 225860,
+        "compress_us": 69189,
+        "verify_us": 8383
+      },
+      "rar_status": "verified",
+      "savings_percent": 67.44017562245934,
+      "gzip_gain_percent": 22.218982116989928,
+      "zip_gain_percent": 22.23889264170844,
+      "rar_gain_percent": -45.257238997609136,
+      "verified": true,
+      "elapsed_ms": 116
+    },
+    {
+      "sample": "chinook.sql",
+      "sha256": "eaf2f2a491599a86539c9993918ef60976a0ac0f37c6fe213e850184f2784fde",
+      "kind": "text",
+      "original_bytes": 968170,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 140398,
+        "compress_us": 5675,
+        "verify_us": 773
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 160691,
+        "compress_us": 5933,
+        "verify_us": 1045
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 160793,
+        "compress_us": 5639,
+        "verify_us": 1002
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 139228,
+        "compress_us": 63047,
+        "verify_us": 6700
+      },
+      "rar_status": "verified",
+      "savings_percent": 85.49862110992905,
+      "gzip_gain_percent": 12.628585297247508,
+      "zip_gain_percent": 12.684009876051816,
+      "rar_gain_percent": -0.8403482058206624,
+      "verified": true,
+      "elapsed_ms": 91
+    },
+    {
+      "sample": "usgs.csv",
+      "sha256": "d932ffe6c03f58a441cbfdb1d8673306f3a66f751dd29fc34f2f14747430da67",
+      "kind": "text",
+      "original_bytes": 213592,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 60122,
+        "compress_us": 2441,
+        "verify_us": 290
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 63537,
+        "compress_us": 2392,
+        "verify_us": 386
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 63633,
+        "compress_us": 2514,
+        "verify_us": 426
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 59511,
+        "compress_us": 41680,
+        "verify_us": 5138
+      },
+      "rar_status": "verified",
+      "savings_percent": 71.85194202030038,
+      "gzip_gain_percent": 5.374820970458161,
+      "zip_gain_percent": 5.517577357660331,
+      "rar_gain_percent": -1.0267009460435794,
+      "verified": true,
+      "elapsed_ms": 56
+    },
+    {
+      "sample": "package-lock.json",
+      "sha256": "8bd6094dc688a627dd910b3f78896ac4d7ba1db57fe3580109af0869e247bf57",
+      "kind": "text",
+      "original_bytes": 45446,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 9063,
+        "compress_us": 431,
+        "verify_us": 50
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 9238,
+        "compress_us": 340,
+        "verify_us": 65
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 9352,
+        "compress_us": 409,
+        "verify_us": 74
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 9400,
+        "compress_us": 34270,
+        "verify_us": 4269
+      },
+      "rar_status": "verified",
+      "savings_percent": 80.0576508383576,
+      "gzip_gain_percent": 1.8943494262827487,
+      "zip_gain_percent": 3.0902480752780126,
+      "rar_gain_percent": 3.58510638297872,
+      "verified": true,
+      "elapsed_ms": 41
+    },
+    {
+      "sample": "alice29.txt",
+      "sha256": "7467306ee0feed4971260f3c87421154a05be571d944e9cb021a5713700c38f0",
+      "kind": "text",
+      "original_bytes": 152089,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 53115,
+        "compress_us": 2186,
+        "verify_us": 255
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 54655,
+        "compress_us": 2384,
+        "verify_us": 320
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 54757,
+        "compress_us": 2502,
+        "verify_us": 333
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 51320,
+        "compress_us": 40721,
+        "verify_us": 5316
+      },
+      "rar_status": "verified",
+      "savings_percent": 65.07636975718165,
+      "gzip_gain_percent": 2.817674503705059,
+      "zip_gain_percent": 2.9987033621272197,
+      "rar_gain_percent": -3.4976617303195567,
+      "verified": true,
+      "elapsed_ms": 56
+    },
+    {
+      "sample": "asyoulik.txt",
+      "sha256": "eaa3526fe53859f34ecdf255712f9ecf0b2c903451d4755b2edaa2e2599cb0fc",
+      "kind": "text",
+      "original_bytes": 125179,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 48579,
+        "compress_us": 1857,
+        "verify_us": 197
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 49214,
+        "compress_us": 1885,
+        "verify_us": 274
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 49318,
+        "compress_us": 2003,
+        "verify_us": 316
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 46990,
+        "compress_us": 38480,
+        "verify_us": 4871
+      },
+      "rar_status": "verified",
+      "savings_percent": 61.192372522547714,
+      "gzip_gain_percent": 1.29028325273296,
+      "zip_gain_percent": 1.4984387039214897,
+      "rar_gain_percent": -3.3815705469248725,
+      "verified": true,
+      "elapsed_ms": 52
+    },
+    {
+      "sample": "cp.html",
+      "sha256": "e0cd21cef5b6c4069461e949be100080c3ce887de6f1dd8626c480528efaaf61",
+      "kind": "text",
+      "original_bytes": 24603,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 8025,
+        "compress_us": 348,
+        "verify_us": 47
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 7967,
+        "compress_us": 288,
+        "verify_us": 58
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 8061,
+        "compress_us": 348,
+        "verify_us": 65
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 8087,
+        "compress_us": 34165,
+        "verify_us": 4225
+      },
+      "rar_status": "verified",
+      "savings_percent": 67.38202658212413,
+      "gzip_gain_percent": -0.7280030124262593,
+      "zip_gain_percent": 0.44659471529586714,
+      "rar_gain_percent": 0.7666625448250253,
+      "verified": true,
+      "elapsed_ms": 40
+    },
+    {
+      "sample": "lcet10.txt",
+      "sha256": "5314ba1dbb03f471df88bec6cd120a938ef60d0fd3511c5c1dce61bf7463245f",
+      "kind": "text",
+      "original_bytes": 426754,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 132588,
+        "compress_us": 5227,
+        "verify_us": 523
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 145664,
+        "compress_us": 6270,
+        "verify_us": 795
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 145764,
+        "compress_us": 6058,
+        "verify_us": 824
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 126923,
+        "compress_us": 52123,
+        "verify_us": 6336
+      },
+      "rar_status": "verified",
+      "savings_percent": 68.93104692633227,
+      "gzip_gain_percent": 8.976823374340947,
+      "zip_gain_percent": 9.039268955297608,
+      "rar_gain_percent": -4.463336038385468,
+      "verified": true,
+      "elapsed_ms": 80
+    },
+    {
+      "sample": "plrabn12.txt",
+      "sha256": "07e2e0b461af78c7c647cb53dab39de560198e16f799b4516eccf0fbd69f764c",
+      "kind": "text",
+      "original_bytes": 481861,
+      "monazip": {
+        "format": "zstd",
+        "level": 6,
+        "bytes": 182274,
+        "compress_us": 6595,
+        "verify_us": 708
+      },
+      "gzip": {
+        "format": "gzip",
+        "level": 6,
+        "bytes": 196139,
+        "compress_us": 8330,
+        "verify_us": 1053
+      },
+      "zip": {
+        "format": "zip",
+        "level": 6,
+        "bytes": 196243,
+        "compress_us": 8234,
+        "verify_us": 1202
+      },
+      "rar": {
+        "format": "rar",
+        "level": 3,
+        "bytes": 176382,
+        "compress_us": 60584,
+        "verify_us": 6698
+      },
+      "rar_status": "verified",
+      "savings_percent": 62.17290878489855,
+      "gzip_gain_percent": 7.068966396280185,
+      "zip_gain_percent": 7.118215681578455,
+      "rar_gain_percent": -3.3404769194135486,
+      "verified": true,
+      "elapsed_ms": 95
+    }
+  ]
+}

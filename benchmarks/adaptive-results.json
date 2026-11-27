@@ -1,0 +1,586 @@
+{
+  "system": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "zstd_level": 3,
+  "summary": {
+    "fixed": {
+      "total_experimental_bytes": 616367,
+      "total_zstd_stream_bytes": 633109,
+      "total_elapsed_ms": 943,
+      "larger_than_source": 0,
+      "largest_peak_rss_bytes": 11632640
+    },
+    "stride": {
+      "total_experimental_bytes": 616367,
+      "total_zstd_stream_bytes": 633109,
+      "total_elapsed_ms": 1024,
+      "larger_than_source": 0,
+      "largest_peak_rss_bytes": 10698752
+    },
+    "block_size": {
+      "total_experimental_bytes": 571044,
+      "total_zstd_stream_bytes": 633109,
+      "total_elapsed_ms": 4623,
+      "larger_than_source": 0,
+      "largest_peak_rss_bytes": 25673728
+    },
+    "both": {
+      "total_experimental_bytes": 571044,
+      "total_zstd_stream_bytes": 633109,
+      "total_elapsed_ms": 5071,
+      "larger_than_source": 0,
+      "largest_peak_rss_bytes": 25624576
+    }
+  },
+  "results": [
+    {
+      "sample": "alice29.txt",
+      "sha256": "7467306ee0feed4971260f3c87421154a05be571d944e9cb021a5713700c38f0",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 152089,
+          "experimental_bytes": 59268,
+          "zstd_stream_bytes": 55787,
+          "zstd_block_bytes": 59183,
+          "block_size": 65536,
+          "elapsed_ms": 42,
+          "peak_rss_bytes": 10420224,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 152089,
+          "experimental_bytes": 59268,
+          "zstd_stream_bytes": 55787,
+          "zstd_block_bytes": 59183,
+          "block_size": 65536,
+          "elapsed_ms": 44,
+          "peak_rss_bytes": 9830400,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 152089,
+          "experimental_bytes": 57031,
+          "zstd_stream_bytes": 55787,
+          "zstd_block_bytes": 56970,
+          "block_size": 262144,
+          "elapsed_ms": 168,
+          "peak_rss_bytes": 11370496,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 152089,
+          "experimental_bytes": 57031,
+          "zstd_stream_bytes": 55787,
+          "zstd_block_bytes": 56970,
+          "block_size": 262144,
+          "elapsed_ms": 185,
+          "peak_rss_bytes": 11370496,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "asyoulik.txt",
+      "sha256": "eaa3526fe53859f34ecdf255712f9ecf0b2c903451d4755b2edaa2e2599cb0fc",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 125179,
+          "experimental_bytes": 51896,
+          "zstd_stream_bytes": 49990,
+          "zstd_block_bytes": 51823,
+          "block_size": 65536,
+          "elapsed_ms": 32,
+          "peak_rss_bytes": 9617408,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 125179,
+          "experimental_bytes": 51896,
+          "zstd_stream_bytes": 49990,
+          "zstd_block_bytes": 51823,
+          "block_size": 65536,
+          "elapsed_ms": 34,
+          "peak_rss_bytes": 10125312,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 125179,
+          "experimental_bytes": 50385,
+          "zstd_stream_bytes": 49990,
+          "zstd_block_bytes": 50324,
+          "block_size": 262144,
+          "elapsed_ms": 131,
+          "peak_rss_bytes": 11337728,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 125179,
+          "experimental_bytes": 50385,
+          "zstd_stream_bytes": 49990,
+          "zstd_block_bytes": 50324,
+          "block_size": 262144,
+          "elapsed_ms": 136,
+          "peak_rss_bytes": 11321344,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "cp.html",
+      "sha256": "e0cd21cef5b6c4069461e949be100080c3ce887de6f1dd8626c480528efaaf61",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 24603,
+          "experimental_bytes": 8525,
+          "zstd_stream_bytes": 8464,
+          "zstd_block_bytes": 8464,
+          "block_size": 65536,
+          "elapsed_ms": 6,
+          "peak_rss_bytes": 8798208,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 24603,
+          "experimental_bytes": 8525,
+          "zstd_stream_bytes": 8464,
+          "zstd_block_bytes": 8464,
+          "block_size": 65536,
+          "elapsed_ms": 7,
+          "peak_rss_bytes": 8830976,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 24603,
+          "experimental_bytes": 8525,
+          "zstd_stream_bytes": 8464,
+          "zstd_block_bytes": 8464,
+          "block_size": 65536,
+          "elapsed_ms": 19,
+          "peak_rss_bytes": 9060352,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 24603,
+          "experimental_bytes": 8525,
+          "zstd_stream_bytes": 8464,
+          "zstd_block_bytes": 8464,
+          "block_size": 65536,
+          "elapsed_ms": 21,
+          "peak_rss_bytes": 9060352,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "fields.c",
+      "sha256": "85d73e354cc50cec76cb5a50537cf8dc035f8cbb8480f9e1cbe2f7d6c23393c7",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 11150,
+          "experimental_bytes": 3441,
+          "zstd_stream_bytes": 3404,
+          "zstd_block_bytes": 3380,
+          "block_size": 65536,
+          "elapsed_ms": 3,
+          "peak_rss_bytes": 8339456,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 11150,
+          "experimental_bytes": 3441,
+          "zstd_stream_bytes": 3404,
+          "zstd_block_bytes": 3380,
+          "block_size": 65536,
+          "elapsed_ms": 4,
+          "peak_rss_bytes": 8355840,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 11150,
+          "experimental_bytes": 3441,
+          "zstd_stream_bytes": 3404,
+          "zstd_block_bytes": 3380,
+          "block_size": 65536,
+          "elapsed_ms": 3,
+          "peak_rss_bytes": 8404992,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 11150,
+          "experimental_bytes": 3441,
+          "zstd_stream_bytes": 3404,
+          "zstd_block_bytes": 3380,
+          "block_size": 65536,
+          "elapsed_ms": 4,
+          "peak_rss_bytes": 8339456,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "grammar.lsp",
+      "sha256": "1b0805dfc0ae706b35aac2bb4e15f02485efd24dda5dbd29de7b2f84d1a88c15",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 3721,
+          "experimental_bytes": 1352,
+          "zstd_stream_bytes": 1302,
+          "zstd_block_bytes": 1291,
+          "block_size": 65536,
+          "elapsed_ms": 1,
+          "peak_rss_bytes": 8126464,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 3721,
+          "experimental_bytes": 1352,
+          "zstd_stream_bytes": 1302,
+          "zstd_block_bytes": 1291,
+          "block_size": 65536,
+          "elapsed_ms": 2,
+          "peak_rss_bytes": 8142848,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 3721,
+          "experimental_bytes": 1352,
+          "zstd_stream_bytes": 1302,
+          "zstd_block_bytes": 1291,
+          "block_size": 65536,
+          "elapsed_ms": 1,
+          "peak_rss_bytes": 8126464,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 3721,
+          "experimental_bytes": 1352,
+          "zstd_stream_bytes": 1302,
+          "zstd_block_bytes": 1291,
+          "block_size": 65536,
+          "elapsed_ms": 2,
+          "peak_rss_bytes": 8126464,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "kennedy.xls",
+      "sha256": "9af47239ca29dfe20e633f80bbbb9a4cc9783d0803d7b2b5626f42e4c3790420",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 1029744,
+          "experimental_bytes": 56142,
+          "zstd_stream_bytes": 111824,
+          "zstd_block_bytes": 111502,
+          "block_size": 65536,
+          "elapsed_ms": 310,
+          "peak_rss_bytes": 11632640,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 1029744,
+          "experimental_bytes": 56142,
+          "zstd_stream_bytes": 111824,
+          "zstd_block_bytes": 111502,
+          "block_size": 65536,
+          "elapsed_ms": 344,
+          "peak_rss_bytes": 10698752,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 1029744,
+          "experimental_bytes": 49630,
+          "zstd_stream_bytes": 111824,
+          "zstd_block_bytes": 111827,
+          "block_size": 1048576,
+          "elapsed_ms": 1531,
+          "peak_rss_bytes": 25673728,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 1029744,
+          "experimental_bytes": 49630,
+          "zstd_stream_bytes": 111824,
+          "zstd_block_bytes": 111827,
+          "block_size": 1048576,
+          "elapsed_ms": 1732,
+          "peak_rss_bytes": 25624576,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "lcet10.txt",
+      "sha256": "5314ba1dbb03f471df88bec6cd120a938ef60d0fd3511c5c1dce61bf7463245f",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 426754,
+          "experimental_bytes": 157954,
+          "zstd_stream_bytes": 141021,
+          "zstd_block_bytes": 157821,
+          "block_size": 65536,
+          "elapsed_ms": 115,
+          "peak_rss_bytes": 10207232,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 426754,
+          "experimental_bytes": 157954,
+          "zstd_stream_bytes": 141021,
+          "zstd_block_bytes": 157821,
+          "block_size": 65536,
+          "elapsed_ms": 124,
+          "peak_rss_bytes": 10076160,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 426754,
+          "experimental_bytes": 141085,
+          "zstd_stream_bytes": 141021,
+          "zstd_block_bytes": 141024,
+          "block_size": 1048576,
+          "elapsed_ms": 590,
+          "peak_rss_bytes": 17203200,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 426754,
+          "experimental_bytes": 141085,
+          "zstd_stream_bytes": 141021,
+          "zstd_block_bytes": 141024,
+          "block_size": 1048576,
+          "elapsed_ms": 660,
+          "peak_rss_bytes": 17711104,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "plrabn12.txt",
+      "sha256": "07e2e0b461af78c7c647cb53dab39de560198e16f799b4516eccf0fbd69f764c",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 481861,
+          "experimental_bytes": 209939,
+          "zstd_stream_bytes": 191681,
+          "zstd_block_bytes": 209794,
+          "block_size": 65536,
+          "elapsed_ms": 123,
+          "peak_rss_bytes": 10305536,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 481861,
+          "experimental_bytes": 209939,
+          "zstd_stream_bytes": 191681,
+          "zstd_block_bytes": 209794,
+          "block_size": 65536,
+          "elapsed_ms": 132,
+          "peak_rss_bytes": 10436608,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 481861,
+          "experimental_bytes": 191745,
+          "zstd_stream_bytes": 191681,
+          "zstd_block_bytes": 191684,
+          "block_size": 1048576,
+          "elapsed_ms": 641,
+          "peak_rss_bytes": 19873792,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 481861,
+          "experimental_bytes": 191745,
+          "zstd_stream_bytes": 191681,
+          "zstd_block_bytes": 191684,
+          "block_size": 1048576,
+          "elapsed_ms": 710,
+          "peak_rss_bytes": 21889024,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "ptt5",
+      "sha256": "0ec3a75089bb52342813496b17e51377bc9eba3cb519a444d67025354841d650",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 513216,
+          "experimental_bytes": 52554,
+          "zstd_stream_bytes": 54417,
+          "zstd_block_bytes": 52409,
+          "block_size": 65536,
+          "elapsed_ms": 296,
+          "peak_rss_bytes": 10010624,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 513216,
+          "experimental_bytes": 52554,
+          "zstd_stream_bytes": 54417,
+          "zstd_block_bytes": 52409,
+          "block_size": 65536,
+          "elapsed_ms": 316,
+          "peak_rss_bytes": 10584064,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 513216,
+          "experimental_bytes": 52554,
+          "zstd_stream_bytes": 54417,
+          "zstd_block_bytes": 52409,
+          "block_size": 65536,
+          "elapsed_ms": 1497,
+          "peak_rss_bytes": 17514496,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 513216,
+          "experimental_bytes": 52554,
+          "zstd_stream_bytes": 54417,
+          "zstd_block_bytes": 52409,
+          "block_size": 65536,
+          "elapsed_ms": 1572,
+          "peak_rss_bytes": 18694144,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "sum",
+      "sha256": "ee5733cd76ecc2f9d8ff156adc3c02a7a851051dcf43a2d56ff4ee4ff606bdb3",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 38240,
+          "experimental_bytes": 13436,
+          "zstd_stream_bytes": 13389,
+          "zstd_block_bytes": 13375,
+          "block_size": 65536,
+          "elapsed_ms": 14,
+          "peak_rss_bytes": 8912896,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 38240,
+          "experimental_bytes": 13436,
+          "zstd_stream_bytes": 13389,
+          "zstd_block_bytes": 13375,
+          "block_size": 65536,
+          "elapsed_ms": 15,
+          "peak_rss_bytes": 8962048,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 38240,
+          "experimental_bytes": 13436,
+          "zstd_stream_bytes": 13389,
+          "zstd_block_bytes": 13375,
+          "block_size": 65536,
+          "elapsed_ms": 41,
+          "peak_rss_bytes": 9224192,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 38240,
+          "experimental_bytes": 13436,
+          "zstd_stream_bytes": 13389,
+          "zstd_block_bytes": 13375,
+          "block_size": 65536,
+          "elapsed_ms": 47,
+          "peak_rss_bytes": 9322496,
+          "verified": true
+        }
+      ]
+    },
+    {
+      "sample": "xargs.1",
+      "sha256": "c58aeb5d2d1e12751d47e7412b45784405fc30a5671b03d480fa05776e183619",
+      "measurements": [
+        {
+          "mode": "fixed",
+          "original_bytes": 4227,
+          "experimental_bytes": 1860,
+          "zstd_stream_bytes": 1830,
+          "zstd_block_bytes": 1799,
+          "block_size": 65536,
+          "elapsed_ms": 1,
+          "peak_rss_bytes": 8192000,
+          "verified": true
+        },
+        {
+          "mode": "stride",
+          "original_bytes": 4227,
+          "experimental_bytes": 1860,
+          "zstd_stream_bytes": 1830,
+          "zstd_block_bytes": 1799,
+          "block_size": 65536,
+          "elapsed_ms": 2,
+          "peak_rss_bytes": 8241152,
+          "verified": true
+        },
+        {
+          "mode": "block_size",
+          "original_bytes": 4227,
+          "experimental_bytes": 1860,
+          "zstd_stream_bytes": 1830,
+          "zstd_block_bytes": 1799,
+          "block_size": 65536,
+          "elapsed_ms": 1,
+          "peak_rss_bytes": 8224768,
+          "verified": true
+        },
+        {
+          "mode": "both",
+          "original_bytes": 4227,
+          "experimental_bytes": 1860,
+          "zstd_stream_bytes": 1830,
+          "zstd_block_bytes": 1799,
+          "block_size": 65536,
+          "elapsed_ms": 2,
+          "peak_rss_bytes": 8208384,
+          "verified": true
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+[package]
+name = "monazip-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+blake3 = "1"
+serde.workspace = true
+tempfile.workspace = true
+zstd = { version = "0.13", features = ["zstdmt"] }
+flate2 = { version = "1", default-features = false, features = ["zlib-rs"] }
+zip = { version = "9", default-features = false, features = ["deflate-flate2-zlib-rs"] }

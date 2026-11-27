@@ -1,0 +1,12 @@
+[package]
+name = "monazip"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+ctrlc = "3"
+monazip-core.workspace = true
+serde_json.workspace = true
+tempfile.workspace = true
+serde.workspace = true
