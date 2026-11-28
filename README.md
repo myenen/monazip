@@ -6,7 +6,7 @@ MonaZip is a local, lossless compression tool for SQLite databases and text file
 
 Select or drop a SQLite or text file, choose a compression mode, and click **Sıkıştır ve karşılaştır** (Compress and compare). Use **.zst kaydet** to save the verified archive or **JSON kaydet** to export the measurements.
 
-- **Zstd 9 · 2 iş parçacığı + uzak eşleşme** is the default. It uses two compression workers and a 128 MiB window to find repetitions farther apart.
+- **Hızlı · Zstd 9** (Fast) is the default. It uses two compression workers and a 128 MiB window to find repetitions farther apart.
 - **Arşiv · Zstd 19** spends more time compressing to favor smaller archives.
 
 To restore a file, click **.zst aç** (Open .zst), select a `.zst` or `.zstd` archive, and choose a new output path. The app suggests a name by removing the archive extension.

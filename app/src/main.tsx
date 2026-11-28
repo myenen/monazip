@@ -244,7 +244,7 @@ function App() {
         <div className="settings">
           <label className="mode">Sıkıştırma modu
             <select disabled={running} value={archiveMode ? "archive" : "default"} onChange={(event) => setArchiveMode(event.target.value === "archive")}>
-              <option value="default">Zstd 9 · 2 iş parçacığı + uzak eşleşme</option>
+              <option value="default">Hızlı · Zstd 9</option>
               <option value="archive">Arşiv · Zstd 19</option>
             </select>
           </label>
