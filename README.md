@@ -6,13 +6,16 @@ MonaZip is a local, lossless compression tool for SQLite databases and text file
 
 Select or drop a SQLite or text file, choose a compression mode, and click **Sıkıştır ve karşılaştır** (Compress and compare). Use **.zst kaydet** to save the verified archive or **JSON kaydet** to export the measurements.
 
+- **Zstd 9 · 2 iş parçacığı + uzak eşleşme** is the default. It uses two compression workers and a 128 MiB window to find repetitions farther apart.
+- **Arşiv · Zstd 19** spends more time compressing to favor smaller archives.
+
 To restore a file, click **.zst aç** (Open .zst), select a `.zst` or `.zstd` archive, and choose a new output path. The app suggests a name by removing the archive extension.
 
 SQLite files are recognized by their header. Common text formats include SQL dumps, TXT, CSV, TSV, JSON, JSONL, XML, YAML, HTML, and logs. MonaZip processes the bytes of the selected file. For a consistent copy of a live SQLite database, use a backup produced by SQLite.
 
 ## How it works
 
-- **Streaming compression.** The Rust engine reads the source in chunks and feeds a single Zstandard stream. Zstandard represents repeated byte sequences using references to earlier data. Levels 3, 6, 9, 15, and 19 trade compression time for archive size. The desktop app also offers level 9 with two compression workers, with or without a 128 MiB long-distance matching window. The larger window can find repetitions farther apart and can increase memory use.
+- **Streaming compression.** The Rust engine reads the source in chunks and feeds a single Zstandard stream. Zstandard represents repeated byte sequences using references to earlier data. The compression level controls how much work the encoder spends searching for matches. A larger window can increase memory use.
 - **Lossless verification.** MonaZip includes a checksum in its Zstandard frames. During a comparison it decompresses every measured archive and compares the result byte for byte with the source. Saving and restoring use a temporary file and publish the result to a new path after the operation succeeds.
 - **Real format comparisons.** gzip and single-entry ZIP use DEFLATE level 6. When the official `rar` executable is available, MonaZip also creates a RAR5 archive at level 3 with one worker. Size includes archive headers. Compression time includes reading the source and writing the temporary archive. Decompression time includes the byte comparison. RAR timings also include launching the external process.
 - **Experimental block encoding.** The CLI research mode samples block sizes and looks for useful distances between related bytes. It tries reversible transforms such as delta encoding, XOR, transposition, and bit shuffling. It chooses the smallest measured representation for each block, including metadata, then decodes the result and checks it against the source. [Research notes](MonaZip-PROJECT.md)

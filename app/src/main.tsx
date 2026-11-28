@@ -56,7 +56,7 @@ function Comparison({ report }: { report: Report }) {
 
 function App() {
   const [file, setFile] = useState<FileInfo>();
-  const [mode, setMode] = useState("6");
+  const [archiveMode, setArchiveMode] = useState(false);
   const [progress, setProgress] = useState<Progress>();
   const [operation, setOperation] = useState<"analysis" | "extract">();
   const [restored, setRestored] = useState<number>();
@@ -128,11 +128,10 @@ function App() {
     const channel = new Channel<Progress>();
     channel.onmessage = (update) => { if (busy.current) setProgress(update); };
     try {
-      const [level, tuning = "standard"] = mode.split(":");
       const result = await invoke<Report>("start_analysis", {
         path: file.path,
-        level: Number(level),
-        tuning,
+        level: archiveMode ? 19 : 9,
+        tuning: archiveMode ? "standard" : "parallel_long",
         progress: channel,
       });
       setReport(result);
@@ -244,14 +243,9 @@ function App() {
         </div>
         <div className="settings">
           <label className="mode">Sıkıştırma modu
-            <select disabled={running} value={mode} onChange={(event) => setMode(event.target.value)}>
-              <option value={3}>Hızlı · Zstd 3</option>
-              <option value={6}>Dengeli · Zstd 6</option>
-              <option value={9}>Yoğun · Zstd 9</option>
-              <option value="9:parallel">Zstd 9 · 2 iş parçacığı</option>
-              <option value="9:parallel_long">Zstd 9 · 2 iş parçacığı + uzak eşleşme</option>
-              <option value={15}>Arşiv · Zstd 15</option>
-              <option value={19}>Arşiv · Zstd 19</option>
+            <select disabled={running} value={archiveMode ? "archive" : "default"} onChange={(event) => setArchiveMode(event.target.value === "archive")}>
+              <option value="default">Zstd 9 · 2 iş parçacığı + uzak eşleşme</option>
+              <option value="archive">Arşiv · Zstd 19</option>
             </select>
           </label>
           {running ? <button className="secondary" disabled={(operation === "extract" ? restored === undefined : !progress) || canceling} onClick={cancel}>{canceling ? "İptal ediliyor…" : "İptal et"}</button> :
