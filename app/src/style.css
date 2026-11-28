@@ -90,7 +90,7 @@ progress::-webkit-progress-value { background: var(--accent); border-radius: 4px
   .result-toolbar { flex-wrap: wrap; }
   .mode, .panel-heading span { font-size: 12px; }
 }
-.zstd, .jpeg_xl { background: var(--accent); }
+.zstd, .jpeg_xl, .lepton { background: var(--accent); }
 .gzip { background: #889db0; }
 .zip { background: #a4b7a1; }
 .rar { background: #d7a373; }

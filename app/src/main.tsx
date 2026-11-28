@@ -11,7 +11,11 @@ function Metric({ label, value }: { label: string; value: string }) {
 }
 
 function Comparison({ report }: { report: Report }) {
-  const measurements = [report.monazip, report.gzip, report.zip];
+  const measurements = [report.monazip];
+  for (const candidate of [report.zstd, report.jpeg_xl_trial, report.lepton_trial]) {
+    if (candidate && candidate.format !== report.monazip.format) measurements.push(candidate);
+  }
+  measurements.push(report.gzip, report.zip);
   if (report.rar) measurements.push(report.rar);
   const rarLabel = report.rar_status === "unavailable" ? "RAR aracı bulunamadı" : "RAR ölçümü tamamlanamadı";
   const series = [
@@ -24,7 +28,7 @@ function Comparison({ report }: { report: Report }) {
     : `${percent(Math.abs(value))} daha ${value > 0 ? "küçük" : "büyük"}`;
   return <>
     <div className="metrics">
-      <Metric label="MonaZip çıktısı" value={bytes(report.monazip.bytes)} />
+      <Metric label={`MonaZip çıktısı (.${report.archive_extension})`} value={bytes(report.monazip.bytes)} />
       <Metric label="gzip’e göre" value={difference(report.gzip_gain_percent)} />
       <Metric label="ZIP’e göre" value={difference(report.zip_gain_percent)} />
       <Metric label="RAR’a göre" value={report.rar_gain_percent === null ? rarLabel : difference(report.rar_gain_percent)} />
@@ -46,7 +50,7 @@ function Comparison({ report }: { report: Report }) {
         <tbody>{measurements.map((item) => <tr key={item.format}>
           <td>{formats[item.format]}{item.format === "zstd" && report.zstd_tuning !== "standard" &&
             <small className="tuning-label">{tuningLabels[report.zstd_tuning]}</small>}</td>
-          <td>{item.format === "jpeg_xl" ? `Efor ${item.level}` : item.level}</td>
+          <td>{item.format === "jpeg_xl" ? `Efor ${item.level}` : item.format === "lepton" ? "—" : item.level}</td>
           <td>{number(item.compress_us / 1000)} ms</td><td>{number(item.verify_us / 1000)} ms</td>
         </tr>)}</tbody>
       </table></div>
@@ -161,13 +165,13 @@ function App() {
     try {
       const path = await open({
         multiple: false, directory: false, title: "Açılacak arşivi seçin",
-        filters: [{ name: "MonaZip arşivleri", extensions: ["zst", "zstd", "jxl"] }],
+        filters: [{ name: "MonaZip arşivleri", extensions: ["zst", "zstd", "jxl", "lep"] }],
       });
       if (!path) return;
-      const isJpegXl = /\.jxl$/i.test(path);
-      let suggested = path.replace(/\.(zst|zstd|jxl)$/i, "");
+      const isJpegArchive = /\.(jxl|lep)$/i.test(path);
+      let suggested = path.replace(/\.(zst|zstd|jxl|lep)$/i, "");
       if (suggested === path || /[\\/]$/.test(suggested)) suggested = "acilan-dosya";
-      if (isJpegXl && !/\.jpe?g$/i.test(suggested)) suggested += ".jpg";
+      if (isJpegArchive && !/\.jpe?g$/i.test(suggested)) suggested += ".jpg";
       const destination = await save({
         title: "Açılan dosyanın konumunu seçin",
         defaultPath: suggested,
@@ -212,7 +216,7 @@ function App() {
       const extension = report.archive_extension;
       const path = await save({
         defaultPath: `${file?.name ?? "monazip"}.${extension}`,
-        filters: [{ name: extension === "jxl" ? "JPEG XL" : "Zstandard", extensions: [extension] }],
+        filters: [{ name: { jxl: "JPEG XL", lep: "Lepton", zst: "Zstandard" }[extension], extensions: [extension] }],
       });
       if (!path) return;
       await invoke("save_archive", { path });

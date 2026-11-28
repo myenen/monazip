@@ -1,4 +1,4 @@
-use crate::{AnalysisError, block, check_cancel, jpegxl, unchanged};
+use crate::{AnalysisError, block, check_cancel, jpegxl, lepton, unchanged};
 use serde::Serialize;
 use std::{
     fs::File,
@@ -51,7 +51,7 @@ fn extract(
     destination: &Path,
     mut progress: impl FnMut(u64),
     cancel: &AtomicBool,
-    allow_jpeg_xl: bool,
+    allow_image_archive: bool,
 ) -> Result<ExtractionReport, AnalysisError> {
     check_cancel(cancel)?;
     let started = Instant::now();
@@ -73,14 +73,20 @@ fn extract(
     let mut output = tempfile::NamedTempFile::new_in(directory)?;
 
     let mut signature = [0; 12];
-    let is_jpeg_xl = allow_jpeg_xl
-        && block::fill(&mut source, &mut signature)? == signature.len()
-        && (&signature == jpegxl::CONTAINER_SIGNATURE || signature.starts_with(b"\xff\x0a"));
+    let count = if allow_image_archive {
+        block::fill(&mut source, &mut signature)?
+    } else {
+        0
+    };
+    let signature = &signature[..count];
+    let is_jpeg_xl =
+        signature.starts_with(jpegxl::CONTAINER_SIGNATURE) || signature.starts_with(b"\xff\x0a");
+    let is_lepton = signature.starts_with(lepton::SIGNATURE);
     source.rewind()?;
     let decoded = (|| {
         progress(0);
         let decoded_jpeg;
-        let mut decoder: Box<dyn Read> = if is_jpeg_xl {
+        let mut decoder: Box<dyn Read> = if is_jpeg_xl || is_lepton {
             if !destination
                 .extension()
                 .and_then(|ext| ext.to_str())
@@ -92,12 +98,19 @@ fn extract(
                     "Geri açılan JPEG için .jpg veya .jpeg uzantılı bir hedef seçin.",
                 ));
             }
-            let tool = jpegxl::decoder().ok_or(AnalysisError::InvalidOptions(
-                "JPEG XL arşivini açmak için djxl aracı gerekli.",
-            ))?;
             decoded_jpeg = tempfile::tempdir()?;
             let path = decoded_jpeg.path().join("restored.jpg");
-            jpegxl::reconstruct(&tool, source.try_clone()?, &path, cancel)?;
+            if is_lepton {
+                let tool = lepton::find().ok_or(AnalysisError::InvalidOptions(
+                    "Lepton arşivini açmak için lepton_jpeg_util aracı gerekli.",
+                ))?;
+                lepton::convert(&tool, source.try_clone()?, &path, false, cancel)?;
+            } else {
+                let tool = jpegxl::decoder().ok_or(AnalysisError::InvalidOptions(
+                    "JPEG XL arşivini açmak için djxl aracı gerekli.",
+                ))?;
+                jpegxl::reconstruct(&tool, source.try_clone()?, &path, cancel)?;
+            }
             Box::new(BufReader::new(File::open(path)?))
         } else {
             Box::new(zstd::stream::read::Decoder::new(&source)?)

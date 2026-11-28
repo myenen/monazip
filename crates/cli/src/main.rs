@@ -3,7 +3,8 @@ use monazip_core::{
     AnalysisError, Options, Phase, analyze,
     extract::extract_archive,
     focused::{
-        FocusProgress, RarStatus, Stage, analyze_focused, analyze_focused_zstd, compress_focused,
+        FocusProgress, Format, RarStatus, Stage, analyze_focused, analyze_focused_for_archive,
+        compress_focused,
     },
 };
 
@@ -29,7 +30,7 @@ struct Args {
     /// Önceki blok tabanlı araştırma modunu kullan
     #[arg(long)]
     experimental: bool,
-    /// Doğrulanmış .zst veya JPEG XL çıktısını yeni dosyaya kaydet
+    /// Doğrulanmış .zst, .jxl veya .lep çıktısını yeni dosyaya kaydet
     #[arg(long, value_name = "PATH", conflicts_with = "experimental")]
     compress_to: Option<PathBuf>,
     /// Arşivi yeni bir dosyaya aç
@@ -212,14 +213,14 @@ fn run_focused(args: &Args, cancel: &AtomicBool) -> Result<(), Box<dyn std::erro
             eprintln!("{stage} · {}", progress.format.name());
         }
     };
-    let jpeg_xl_requested = args
-        .compress_to
-        .as_ref()
-        .and_then(|path| path.extension())
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("jxl"));
+    let requested_format = args.compress_to.as_ref().map(|path| {
+        path.extension()
+            .and_then(|extension| extension.to_str())
+            .and_then(Format::from_image_extension)
+            .unwrap_or(Format::Zstd)
+    });
     if let Some(path) = &args.compress_to
-        && !jpeg_xl_requested
+        && requested_format == Some(Format::Zstd)
         && !args.json
         && args.output.is_none()
     {
@@ -233,8 +234,8 @@ fn run_focused(args: &Args, cancel: &AtomicBool) -> Result<(), Box<dyn std::erro
         )?;
         return Ok(());
     }
-    let result = if args.compress_to.is_some() && !jpeg_xl_requested {
-        analyze_focused_zstd(&args.input, level, notify, cancel)?
+    let result = if let Some(format) = requested_format {
+        analyze_focused_for_archive(&args.input, level, format, notify, cancel)?
     } else {
         analyze_focused(&args.input, level, notify, cancel)?
     };
@@ -252,8 +253,18 @@ fn run_focused(args: &Args, cancel: &AtomicBool) -> Result<(), Box<dyn std::erro
     } else {
         writeln!(stdout, "Kaynak · {} bayt", report.original_bytes)?;
         writeln!(stdout, "Seçilen arşiv · .{}", report.archive_extension)?;
-        for row in [&report.monazip, &report.gzip, &report.zip]
-            .into_iter()
+        for row in std::iter::once(&report.monazip)
+            .chain(
+                [
+                    Some(&report.zstd),
+                    report.jpeg_xl_trial.as_ref(),
+                    report.lepton_trial.as_ref(),
+                ]
+                .into_iter()
+                .flatten()
+                .filter(|row| row.format != report.monazip.format),
+            )
+            .chain([&report.gzip, &report.zip])
             .chain(&report.rar)
         {
             writeln!(

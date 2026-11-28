@@ -1,4 +1,4 @@
-use crate::{AnalysisError, block, check_cancel, jpegxl, rar, statistics, unchanged};
+use crate::{AnalysisError, block, check_cancel, jpegxl, lepton, rar, statistics, unchanged};
 use flate2::{Compression, read::MultiGzDecoder, write::GzEncoder};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -40,21 +40,40 @@ pub enum FileKind {
     Tiff,
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Format {
     Zstd,
     JpegXl,
+    Lepton,
     Gzip,
     Zip,
     Rar,
 }
 
 impl Format {
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Zstd => "zst",
+            Self::JpegXl => "jxl",
+            Self::Lepton => "lep",
+            Self::Gzip => "gz",
+            Self::Zip => "zip",
+            Self::Rar => "rar",
+        }
+    }
+
+    pub fn from_image_extension(extension: &str) -> Option<Self> {
+        [Self::JpegXl, Self::Lepton]
+            .into_iter()
+            .find(|format| extension.eq_ignore_ascii_case(format.extension()))
+    }
+
     pub fn name(self) -> &'static str {
         match self {
             Self::Zstd => "MonaZip (.zst)",
-            Self::JpegXl => "MonaZip (JPEG XL)",
+            Self::JpegXl => "JPEG XL (.jxl)",
+            Self::Lepton => "Lepton (.lep)",
             Self::Gzip => "gzip (.gz)",
             Self::Zip => "ZIP (.zip)",
             Self::Rar => "RAR (.rar)",
@@ -103,6 +122,8 @@ pub struct FocusReport {
     pub monazip: FormatMeasurement,
     pub archive_extension: &'static str,
     pub jpeg_xl_trial: Option<FormatMeasurement>,
+    pub lepton_trial: Option<FormatMeasurement>,
+    pub zstd: FormatMeasurement,
     pub zstd_tuning: ZstdTuning,
     pub gzip: FormatMeasurement,
     pub zip: FormatMeasurement,
@@ -127,8 +148,9 @@ impl FocusResult {
             .extension()
             .and_then(|value| value.to_str())
             .unwrap_or_default();
-        if matches!(self.report.monazip.format, Format::JpegXl)
-            != extension.eq_ignore_ascii_case("jxl")
+        if (self.report.monazip.format != Format::Zstd
+            || Format::from_image_extension(extension).is_some())
+            && !extension.eq_ignore_ascii_case(self.report.archive_extension)
         {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
@@ -230,6 +252,7 @@ struct Run<'a, F> {
     total: u64,
     format_count: u8,
     jpeg_xl_trial: bool,
+    lepton_trial: bool,
     zstd_tuning: ZstdTuning,
     input: Vec<u8>,
     decoded: Vec<u8>,
@@ -237,12 +260,14 @@ struct Run<'a, F> {
 
 impl<F: FnMut(FocusProgress)> Run<'_, F> {
     fn notify(&mut self, format: Format, stage: Stage, processed_bytes: u64) {
+        let image_trials = u8::from(self.jpeg_xl_trial) + u8::from(self.lepton_trial);
         let format_index = match format {
             Format::Zstd => 0,
             Format::JpegXl => 1,
-            Format::Gzip => 1 + u8::from(self.jpeg_xl_trial),
-            Format::Zip => 2 + u8::from(self.jpeg_xl_trial),
-            Format::Rar => 3 + u8::from(self.jpeg_xl_trial),
+            Format::Lepton => 1 + u8::from(self.jpeg_xl_trial),
+            Format::Gzip => 1 + image_trials,
+            Format::Zip => 2 + image_trials,
+            Format::Rar => 3 + image_trials,
         };
         (self.progress)(FocusProgress {
             format,
@@ -343,7 +368,9 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
                 self.transfer(&mut encoder, format)?;
                 encoder.finish().map_err(zip_error)?;
             }
-            Format::Rar | Format::JpegXl => unreachable!("Uses an external encoder"),
+            Format::Rar | Format::JpegXl | Format::Lepton => {
+                unreachable!("Uses an external encoder")
+            }
         }
         output.flush()?;
         drop(output);
@@ -362,7 +389,9 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
                 let mut zip = ZipArchive::new(input).map_err(zip_error)?;
                 self.verify(zip.by_index(0).map_err(zip_error)?, format)?;
             }
-            Format::Rar | Format::JpegXl => unreachable!("Uses an external decoder"),
+            Format::Rar | Format::JpegXl | Format::Lepton => {
+                unreachable!("Uses an external decoder")
+            }
         }
         let verify_us = micros(verification.elapsed());
         Ok((
@@ -377,28 +406,30 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
         ))
     }
 
-    fn measure_jpeg_xl(
+    fn measure_jpeg_candidate(
         &mut self,
-        tool: &jpegxl::JpegXl,
-        effort: i32,
+        format: Format,
+        level: i32,
+        encode: impl FnOnce(&Path, &Path) -> Result<(), AnalysisError>,
+        decode: impl FnOnce(&Path, &Path) -> Result<(), AnalysisError>,
     ) -> Result<(FormatMeasurement, File), AnalysisError> {
         let directory = tempfile::tempdir()?;
         let source = directory.path().join("source.jpg");
-        let archive = directory.path().join("archive.jxl");
+        let archive = directory
+            .path()
+            .join(format!("archive.{}", format.extension()));
         let restored = directory.path().join("restored.jpg");
-        let format = Format::JpegXl;
         let compression = Instant::now();
         let mut input = BufWriter::new(File::create(&source)?);
         self.transfer(&mut input, format)?;
         input.flush()?;
         drop(input);
-        tool.compress(&source, &archive, effort, self.cancel)?;
+        encode(&source, &archive)?;
         let compress_us = micros(compression.elapsed());
-        let encoded = File::open(&archive)?;
-        let bytes = encoded.metadata()?.len();
+        let bytes = archive.metadata()?.len();
         let verification = Instant::now();
         self.notify(format, Stage::Verifying, 0);
-        jpegxl::reconstruct(&tool.decoder, encoded.try_clone()?, &restored, self.cancel)?;
+        decode(&archive, &restored)?;
         self.verify(BufReader::new(File::open(restored)?), format)?;
         let verify_us = micros(verification.elapsed());
         // Copy to an anonymous file so the temporary directory also works on Windows.
@@ -407,7 +438,7 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
         Ok((
             FormatMeasurement {
                 format,
-                level: effort,
+                level,
                 bytes,
                 compress_us,
                 verify_us,
@@ -476,6 +507,7 @@ fn with_source<F: FnMut(FocusProgress), R>(
         total: before.len(),
         format_count: 1,
         jpeg_xl_trial: false,
+        lepton_trial: false,
         zstd_tuning: ZstdTuning::Standard,
         cancel,
         progress,
@@ -522,13 +554,21 @@ pub fn analyze_focused(
     analyze_focused_with_tuning(path, level, ZstdTuning::Standard, progress, cancel)
 }
 
-pub fn analyze_focused_zstd(
+pub fn analyze_focused_for_archive(
     path: impl AsRef<Path>,
     level: i32,
+    format: Format,
     progress: impl FnMut(FocusProgress),
     cancel: &AtomicBool,
 ) -> Result<FocusResult, AnalysisError> {
-    analyze_with_image_routing(path, level, ZstdTuning::Standard, progress, cancel, false)
+    analyze_with_image_routing(
+        path,
+        level,
+        ZstdTuning::Standard,
+        progress,
+        cancel,
+        Some(format),
+    )
 }
 
 pub fn analyze_focused_with_tuning(
@@ -538,7 +578,7 @@ pub fn analyze_focused_with_tuning(
     progress: impl FnMut(FocusProgress),
     cancel: &AtomicBool,
 ) -> Result<FocusResult, AnalysisError> {
-    analyze_with_image_routing(path, level, tuning, progress, cancel, true)
+    analyze_with_image_routing(path, level, tuning, progress, cancel, None)
 }
 
 fn analyze_with_image_routing(
@@ -547,7 +587,7 @@ fn analyze_with_image_routing(
     tuning: ZstdTuning,
     progress: impl FnMut(FocusProgress),
     cancel: &AtomicBool,
-    allow_jpeg_xl: bool,
+    requested_format: Option<Format>,
 ) -> Result<FocusResult, AnalysisError> {
     if level != 9 && tuning != ZstdTuning::Standard {
         return Err(AnalysisError::InvalidOptions(
@@ -557,11 +597,18 @@ fn analyze_with_image_routing(
     let started = Instant::now();
     let rar_tool = rar::find();
     with_source(path.as_ref(), level, progress, cancel, |run, kind, name| {
-        let jpeg_xl = (allow_jpeg_xl && matches!(kind, FileKind::Jpeg))
-            .then(jpegxl::JpegXl::find)
-            .flatten();
+        let can_try = |format| {
+            matches!(kind, FileKind::Jpeg)
+                && requested_format.is_none_or(|requested| requested == format)
+        };
+        let jpeg_xl = can_try(Format::JpegXl).then(jpegxl::JpegXl::find).flatten();
+        let lepton = can_try(Format::Lepton).then(lepton::find).flatten();
         run.jpeg_xl_trial = jpeg_xl.is_some();
-        run.format_count = 3 + u8::from(rar_tool.is_some()) + u8::from(run.jpeg_xl_trial);
+        run.lepton_trial = lepton.is_some();
+        run.format_count = 3
+            + u8::from(rar_tool.is_some())
+            + u8::from(run.jpeg_xl_trial)
+            + u8::from(run.lepton_trial);
         let (zstd_level, applied_tuning) = if matches!(
             kind,
             FileKind::Jpeg | FileKind::Png | FileKind::Webp | FileKind::Gif
@@ -572,29 +619,53 @@ fn analyze_with_image_routing(
             (level, tuning)
         };
         run.zstd_tuning = applied_tuning;
-        let (mut monazip, mut archive) = run.measure(Format::Zstd, zstd_level, name)?;
-        let mut jpeg_xl_trial = None;
-        if let Some(tool) = jpeg_xl {
-            let effort = if level >= 19 { 7 } else { 3 };
-            match run.measure_jpeg_xl(&tool, effort) {
+        let (zstd, mut archive) = run.measure(Format::Zstd, zstd_level, name)?;
+        let mut monazip = zstd.clone();
+        let mut consider =
+            |candidate: Result<(FormatMeasurement, File), AnalysisError>| match candidate {
                 Ok((measurement, encoded)) => {
-                    jpeg_xl_trial = Some(measurement.clone());
-                    if measurement.bytes < monazip.bytes {
-                        monazip = measurement;
+                    if measurement.bytes < monazip.bytes
+                        || requested_format == Some(measurement.format)
+                    {
+                        monazip = measurement.clone();
                         archive = encoded;
                     }
+                    Ok(Some(measurement))
                 }
                 Err(error @ (AnalysisError::Cancelled | AnalysisError::SourceChanged)) => {
-                    return Err(error);
+                    Err(error)
                 }
-                Err(_) => {}
-            }
-        }
-        let archive_extension = if matches!(monazip.format, Format::JpegXl) {
-            "jxl"
+                Err(_) => Ok(None),
+            };
+        let jpeg_xl_trial = if let Some(tool) = jpeg_xl {
+            let effort = if level >= 19 { 7 } else { 3 };
+            consider(run.measure_jpeg_candidate(
+                Format::JpegXl,
+                effort,
+                |input, output| tool.compress(input, output, effort, cancel),
+                |input, output| {
+                    jpegxl::reconstruct(&tool.decoder, File::open(input)?, output, cancel)
+                },
+            ))?
         } else {
-            "zst"
+            None
         };
+        let lepton_trial = if let Some(tool) = lepton {
+            consider(run.measure_jpeg_candidate(
+                Format::Lepton,
+                0,
+                |input, output| lepton::convert(&tool, File::open(input)?, output, true, cancel),
+                |input, output| lepton::convert(&tool, File::open(input)?, output, false, cancel),
+            ))?
+        } else {
+            None
+        };
+        let archive_extension = monazip.format.extension();
+        if requested_format.is_some_and(|format| format != monazip.format) {
+            return Err(AnalysisError::InvalidOptions(
+                "İstenen JPEG arşivi oluşturulamadı veya birebir doğrulanamadı. JPEG dosyasını ve ilgili kodlayıcının kurulumunu kontrol edin.",
+            ));
+        }
         let (gzip, _) = run.measure(Format::Gzip, DEFLATE_LEVEL as i32, name)?;
         let (zip, _) = run.measure(Format::Zip, DEFLATE_LEVEL as i32, name)?;
         let (rar, rar_status) = match rar_tool {
@@ -613,8 +684,10 @@ fn analyze_with_image_routing(
             report: FocusReport {
                 kind,
                 zstd_tuning: applied_tuning,
+                zstd,
                 archive_extension,
                 jpeg_xl_trial,
+                lepton_trial,
                 original_bytes: total,
                 savings_percent: statistics::savings(monazip.bytes, total),
                 gzip_gain_percent: statistics::savings(monazip.bytes, gzip.bytes)

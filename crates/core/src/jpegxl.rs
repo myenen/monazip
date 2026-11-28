@@ -1,34 +1,13 @@
-use crate::{AnalysisError, check_cancel};
+use crate::{AnalysisError, check_cancel, codec_tool};
 use std::{
-    env,
     fs::File,
     io::{self, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::atomic::AtomicBool,
-    thread,
-    time::Duration,
 };
 
 pub(crate) const CONTAINER_SIGNATURE: &[u8; 12] = b"\0\0\0\x0cJXL \r\n\x87\n";
-
-fn executable(name: &str) -> Option<PathBuf> {
-    let name = if cfg!(windows) {
-        format!("{name}.exe")
-    } else {
-        name.into()
-    };
-    let entries = env::var_os("PATH").unwrap_or_default();
-    env::split_paths(&entries)
-        .chain(
-            ["/opt/homebrew/bin", "/usr/local/bin"]
-                .into_iter()
-                .map(PathBuf::from),
-        )
-        .filter(|directory| directory.is_absolute())
-        .map(|directory| directory.join(&name))
-        .find(|candidate| candidate.is_file())
-}
 
 pub(crate) struct JpegXl {
     encoder: PathBuf,
@@ -38,7 +17,7 @@ pub(crate) struct JpegXl {
 impl JpegXl {
     pub(crate) fn find() -> Option<Self> {
         Some(Self {
-            encoder: executable("cjxl")?,
+            encoder: codec_tool::executable("cjxl")?,
             decoder: decoder()?,
         })
     }
@@ -56,13 +35,14 @@ impl JpegXl {
             .args(["--lossless_jpeg=1", "--num_threads=2"])
             .arg(format!("--effort={effort}"))
             .stdin(Stdio::null())
+            .stdout(Stdio::null())
             .stderr(Stdio::null());
-        run(command, cancel)
+        codec_tool::run(command, "JPEG XL", cancel)
     }
 }
 
 pub(crate) fn decoder() -> Option<PathBuf> {
-    executable("djxl")
+    codec_tool::executable("djxl")
 }
 
 pub(crate) fn reconstruct(
@@ -84,8 +64,9 @@ pub(crate) fn reconstruct(
         .arg(output)
         .arg("--num_threads=2")
         .stdin(Stdio::from(archive))
+        .stdout(Stdio::null())
         .stderr(Stdio::from(diagnostics.try_clone()?));
-    run(command, cancel)?;
+    codec_tool::run(command, "JPEG XL", cancel)?;
     diagnostics.rewind()?;
     let mut messages = Vec::new();
     diagnostics.take(64 * 1024).read_to_end(&mut messages)?;
@@ -135,33 +116,4 @@ fn has_reconstruction_data(input: &mut File, cancel: &AtomicBool) -> Result<bool
         input.seek(SeekFrom::Start(start + size))?;
     }
     Ok(false)
-}
-
-fn run(mut command: Command, cancel: &AtomicBool) -> Result<(), AnalysisError> {
-    check_cancel(cancel)?;
-    command.stdout(Stdio::null());
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(0x0800_0000);
-    }
-    let mut child = command.spawn()?;
-    let result = loop {
-        if let Err(error) = check_cancel(cancel) {
-            break Err(error);
-        }
-        match child.try_wait() {
-            Ok(Some(status)) if status.success() => return Ok(()),
-            Ok(Some(status)) => {
-                return Err(
-                    io::Error::other(format!("JPEG XL işlemi başarısız oldu ({status}).")).into(),
-                );
-            }
-            Ok(None) => thread::sleep(Duration::from_millis(1)),
-            Err(error) => break Err(error.into()),
-        }
-    };
-    let _ = child.kill();
-    let _ = child.wait();
-    result
 }

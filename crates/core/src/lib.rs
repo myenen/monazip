@@ -1,10 +1,12 @@
 mod block;
 mod block_size;
 mod codec;
+mod codec_tool;
 pub mod extract;
 pub mod focused;
 mod geometry;
 mod jpegxl;
+mod lepton;
 mod models;
 mod optimizer;
 mod rar;
