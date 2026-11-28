@@ -1,4 +1,4 @@
-use crate::{AnalysisError, block, check_cancel, rar, statistics, unchanged};
+use crate::{AnalysisError, block, check_cancel, jpegxl, rar, statistics, unchanged};
 use flate2::{Compression, read::MultiGzDecoder, write::GzEncoder};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -32,12 +32,19 @@ pub enum ZstdTuning {
 pub enum FileKind {
     Sqlite,
     Text,
+    Jpeg,
+    Png,
+    Webp,
+    Gif,
+    Bmp,
+    Tiff,
 }
 
 #[derive(Clone, Copy, Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Format {
     Zstd,
+    JpegXl,
     Gzip,
     Zip,
     Rar,
@@ -47,6 +54,7 @@ impl Format {
     pub fn name(self) -> &'static str {
         match self {
             Self::Zstd => "MonaZip (.zst)",
+            Self::JpegXl => "MonaZip (JPEG XL)",
             Self::Gzip => "gzip (.gz)",
             Self::Zip => "ZIP (.zip)",
             Self::Rar => "RAR (.rar)",
@@ -68,6 +76,7 @@ pub struct FocusProgress {
     pub processed_bytes: u64,
     pub total_bytes: u64,
     pub format_count: u8,
+    pub format_index: u8,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -92,6 +101,8 @@ pub struct FocusReport {
     pub kind: FileKind,
     pub original_bytes: u64,
     pub monazip: FormatMeasurement,
+    pub archive_extension: &'static str,
+    pub jpeg_xl_trial: Option<FormatMeasurement>,
     pub zstd_tuning: ZstdTuning,
     pub gzip: FormatMeasurement,
     pub zip: FormatMeasurement,
@@ -112,6 +123,21 @@ pub struct FocusResult {
 
 impl FocusResult {
     pub fn save_archive(&self, path: &Path) -> io::Result<()> {
+        let extension = path
+            .extension()
+            .and_then(|value| value.to_str())
+            .unwrap_or_default();
+        if matches!(self.report.monazip.format, Format::JpegXl)
+            != extension.eq_ignore_ascii_case("jxl")
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!(
+                    "Arşiv için .{} uzantılı bir hedef seçin.",
+                    self.report.archive_extension,
+                ),
+            ));
+        }
         save_archive(&self.archive, path, self.report.monazip.bytes)
     }
 }
@@ -155,6 +181,28 @@ fn identify(path: &Path, source: &mut (impl Read + Seek)) -> Result<FileKind, An
     if count == header.len() && &header == SQLITE_HEADER {
         return Ok(FileKind::Sqlite);
     }
+    let header = &header[..count];
+    if header.starts_with(b"\xff\xd8\xff") {
+        return Ok(FileKind::Jpeg);
+    }
+    if header.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Ok(FileKind::Png);
+    }
+    if header.starts_with(b"GIF87a") || header.starts_with(b"GIF89a") {
+        return Ok(FileKind::Gif);
+    }
+    if header.starts_with(b"RIFF") && header.get(8..12) == Some(b"WEBP") {
+        return Ok(FileKind::Webp);
+    }
+    if count >= 14 && header.starts_with(b"BM") && header[6..10] == [0; 4] {
+        return Ok(FileKind::Bmp);
+    }
+    if [b"II*\0", b"MM\0*", b"II+\0", b"MM\0+"]
+        .iter()
+        .any(|signature| header.starts_with(*signature))
+    {
+        return Ok(FileKind::Tiff);
+    }
     if let Some(extension) = path.extension().and_then(|extension| extension.to_str())
         && TEXT_EXTENSIONS
             .iter()
@@ -163,7 +211,7 @@ fn identify(path: &Path, source: &mut (impl Read + Seek)) -> Result<FileKind, An
         return Ok(FileKind::Text);
     }
     Err(AnalysisError::InvalidOptions(
-        "SQLite veritabanı veya TXT, SQL, CSV, JSON, LOG gibi bir metin dosyası seçin.",
+        "SQLite, metin veya JPEG, PNG, GIF, WebP, BMP, TIFF görseli seçin.",
     ))
 }
 
@@ -181,6 +229,7 @@ struct Run<'a, F> {
     progress: F,
     total: u64,
     format_count: u8,
+    jpeg_xl_trial: bool,
     zstd_tuning: ZstdTuning,
     input: Vec<u8>,
     decoded: Vec<u8>,
@@ -188,12 +237,20 @@ struct Run<'a, F> {
 
 impl<F: FnMut(FocusProgress)> Run<'_, F> {
     fn notify(&mut self, format: Format, stage: Stage, processed_bytes: u64) {
+        let format_index = match format {
+            Format::Zstd => 0,
+            Format::JpegXl => 1,
+            Format::Gzip => 1 + u8::from(self.jpeg_xl_trial),
+            Format::Zip => 2 + u8::from(self.jpeg_xl_trial),
+            Format::Rar => 3 + u8::from(self.jpeg_xl_trial),
+        };
         (self.progress)(FocusProgress {
             format,
             stage,
             processed_bytes,
             total_bytes: self.total,
             format_count: self.format_count,
+            format_index,
         });
     }
 
@@ -286,7 +343,7 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
                 self.transfer(&mut encoder, format)?;
                 encoder.finish().map_err(zip_error)?;
             }
-            Format::Rar => unreachable!("RAR uses the external encoder"),
+            Format::Rar | Format::JpegXl => unreachable!("Uses an external encoder"),
         }
         output.flush()?;
         drop(output);
@@ -305,7 +362,7 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
                 let mut zip = ZipArchive::new(input).map_err(zip_error)?;
                 self.verify(zip.by_index(0).map_err(zip_error)?, format)?;
             }
-            Format::Rar => unreachable!("RAR uses the external decoder"),
+            Format::Rar | Format::JpegXl => unreachable!("Uses an external decoder"),
         }
         let verify_us = micros(verification.elapsed());
         Ok((
@@ -317,6 +374,45 @@ impl<F: FnMut(FocusProgress)> Run<'_, F> {
                 verify_us,
             },
             archive,
+        ))
+    }
+
+    fn measure_jpeg_xl(
+        &mut self,
+        tool: &jpegxl::JpegXl,
+        effort: i32,
+    ) -> Result<(FormatMeasurement, File), AnalysisError> {
+        let directory = tempfile::tempdir()?;
+        let source = directory.path().join("source.jpg");
+        let archive = directory.path().join("archive.jxl");
+        let restored = directory.path().join("restored.jpg");
+        let format = Format::JpegXl;
+        let compression = Instant::now();
+        let mut input = BufWriter::new(File::create(&source)?);
+        self.transfer(&mut input, format)?;
+        input.flush()?;
+        drop(input);
+        tool.compress(&source, &archive, effort, self.cancel)?;
+        let compress_us = micros(compression.elapsed());
+        let encoded = File::open(&archive)?;
+        let bytes = encoded.metadata()?.len();
+        let verification = Instant::now();
+        self.notify(format, Stage::Verifying, 0);
+        jpegxl::reconstruct(&tool.decoder, encoded.try_clone()?, &restored, self.cancel)?;
+        self.verify(BufReader::new(File::open(restored)?), format)?;
+        let verify_us = micros(verification.elapsed());
+        // Copy to an anonymous file so the temporary directory also works on Windows.
+        let mut saved = tempfile::tempfile()?;
+        io::copy(&mut BufReader::new(File::open(archive)?), &mut saved)?;
+        Ok((
+            FormatMeasurement {
+                format,
+                level: effort,
+                bytes,
+                compress_us,
+                verify_us,
+            },
+            saved,
         ))
     }
 
@@ -379,6 +475,7 @@ fn with_source<F: FnMut(FocusProgress), R>(
         source: BufReader::with_capacity(BUFFER_SIZE, source),
         total: before.len(),
         format_count: 1,
+        jpeg_xl_trial: false,
         zstd_tuning: ZstdTuning::Standard,
         cancel,
         progress,
@@ -425,12 +522,32 @@ pub fn analyze_focused(
     analyze_focused_with_tuning(path, level, ZstdTuning::Standard, progress, cancel)
 }
 
+pub fn analyze_focused_zstd(
+    path: impl AsRef<Path>,
+    level: i32,
+    progress: impl FnMut(FocusProgress),
+    cancel: &AtomicBool,
+) -> Result<FocusResult, AnalysisError> {
+    analyze_with_image_routing(path, level, ZstdTuning::Standard, progress, cancel, false)
+}
+
 pub fn analyze_focused_with_tuning(
     path: impl AsRef<Path>,
     level: i32,
     tuning: ZstdTuning,
     progress: impl FnMut(FocusProgress),
     cancel: &AtomicBool,
+) -> Result<FocusResult, AnalysisError> {
+    analyze_with_image_routing(path, level, tuning, progress, cancel, true)
+}
+
+fn analyze_with_image_routing(
+    path: impl AsRef<Path>,
+    level: i32,
+    tuning: ZstdTuning,
+    progress: impl FnMut(FocusProgress),
+    cancel: &AtomicBool,
+    allow_jpeg_xl: bool,
 ) -> Result<FocusResult, AnalysisError> {
     if level != 9 && tuning != ZstdTuning::Standard {
         return Err(AnalysisError::InvalidOptions(
@@ -440,9 +557,44 @@ pub fn analyze_focused_with_tuning(
     let started = Instant::now();
     let rar_tool = rar::find();
     with_source(path.as_ref(), level, progress, cancel, |run, kind, name| {
-        run.format_count = if rar_tool.is_some() { 4 } else { 3 };
-        run.zstd_tuning = tuning;
-        let (monazip, archive) = run.measure(Format::Zstd, level, name)?;
+        let jpeg_xl = (allow_jpeg_xl && matches!(kind, FileKind::Jpeg))
+            .then(jpegxl::JpegXl::find)
+            .flatten();
+        run.jpeg_xl_trial = jpeg_xl.is_some();
+        run.format_count = 3 + u8::from(rar_tool.is_some()) + u8::from(run.jpeg_xl_trial);
+        let (zstd_level, applied_tuning) = if matches!(
+            kind,
+            FileKind::Jpeg | FileKind::Png | FileKind::Webp | FileKind::Gif
+        ) && tuning == ZstdTuning::ParallelLong
+        {
+            (3, ZstdTuning::Standard)
+        } else {
+            (level, tuning)
+        };
+        run.zstd_tuning = applied_tuning;
+        let (mut monazip, mut archive) = run.measure(Format::Zstd, zstd_level, name)?;
+        let mut jpeg_xl_trial = None;
+        if let Some(tool) = jpeg_xl {
+            let effort = if level >= 19 { 7 } else { 3 };
+            match run.measure_jpeg_xl(&tool, effort) {
+                Ok((measurement, encoded)) => {
+                    jpeg_xl_trial = Some(measurement.clone());
+                    if measurement.bytes < monazip.bytes {
+                        monazip = measurement;
+                        archive = encoded;
+                    }
+                }
+                Err(error @ (AnalysisError::Cancelled | AnalysisError::SourceChanged)) => {
+                    return Err(error);
+                }
+                Err(_) => {}
+            }
+        }
+        let archive_extension = if matches!(monazip.format, Format::JpegXl) {
+            "jxl"
+        } else {
+            "zst"
+        };
         let (gzip, _) = run.measure(Format::Gzip, DEFLATE_LEVEL as i32, name)?;
         let (zip, _) = run.measure(Format::Zip, DEFLATE_LEVEL as i32, name)?;
         let (rar, rar_status) = match rar_tool {
@@ -460,7 +612,9 @@ pub fn analyze_focused_with_tuning(
         Ok(FocusResult {
             report: FocusReport {
                 kind,
-                zstd_tuning: tuning,
+                zstd_tuning: applied_tuning,
+                archive_extension,
+                jpeg_xl_trial,
                 original_bytes: total,
                 savings_percent: statistics::savings(monazip.bytes, total),
                 gzip_gain_percent: statistics::savings(monazip.bytes, gzip.bytes)

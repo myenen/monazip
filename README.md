@@ -1,22 +1,32 @@
 # MonaZip
 
-MonaZip is a local, lossless compression tool for SQLite databases and text files. It creates standard Zstandard (`.zst`) archives, restores them, and compares their size and performance with gzip, ZIP, and optional RAR5. It includes a macOS desktop app and a command-line interface.
+MonaZip is a local, lossless compression tool for SQLite databases, text files, and images. It creates and restores standard Zstandard (`.zst`) and JPEG XL (`.jxl`) archives, and compares their size and performance with gzip, ZIP, and optional RAR5. It includes a macOS desktop app and a command-line interface.
 
 ## Desktop app
 
-Select or drop a SQLite or text file, choose a compression mode, and click **Sıkıştır ve karşılaştır** (Compress and compare). Use **.zst kaydet** to save the verified archive or **JSON kaydet** to export the measurements.
+Select or drop a SQLite database, text file, or image, choose a compression mode, and click **Sıkıştır ve karşılaştır** (Compress and compare). Use the save button to export the verified archive or **JSON kaydet** to export the measurements.
 
 - **Hızlı · Zstd 9** (Fast) is the default. It uses two compression workers and a 128 MiB window to find repetitions farther apart.
 - **Arşiv · Zstd 19** spends more time compressing to favor smaller archives.
 
-To restore a file, click **.zst aç** (Open .zst), select a `.zst` or `.zstd` archive, and choose a new output path. The app suggests a name by removing the archive extension.
+To restore a file, click **Arşiv aç** (Open archive), select a `.zst`, `.zstd`, or JPEG reconstruction `.jxl` archive, and choose a new output path.
 
-SQLite files are recognized by their header. Common text formats include SQL dumps, TXT, CSV, TSV, JSON, JSONL, XML, YAML, HTML, and logs. MonaZip processes the bytes of the selected file. For a consistent copy of a live SQLite database, use a backup produced by SQLite.
+SQLite and JPEG, PNG, GIF, WebP, BMP, and TIFF images are recognized by their file signatures. Common text formats include SQL dumps, TXT, CSV, TSV, JSON, JSONL, XML, YAML, HTML, and logs. MonaZip processes the bytes of the selected file. For a consistent copy of a live SQLite database, use a backup produced by SQLite.
 
 ## How it works
 
+| Input | Compression route |
+|---|---|
+| Text and SQLite | Zstandard with the selected mode. |
+| JPEG | Try lossless JPEG XL recompression and keep it if it can reproduce the exact original JPEG and is smaller than Zstandard. |
+| PNG, GIF, WebP | Zstandard preserves the original image file. Fast mode uses level 3 for these already compressed formats. |
+| BMP and TIFF | Zstandard with the selected mode. |
+
+JPEG XL uses the official `cjxl` and `djxl` tools when available. On macOS, install them with `brew install jpeg-xl`. To restore an original JPEG, MonaZip requires JPEG reconstruction data and checks that the decoder reports a successful reconstruction. [JPEG XL tools](https://github.com/libjxl/libjxl)
+
+
 - **Streaming compression.** The Rust engine reads the source in chunks and feeds a single Zstandard stream. Zstandard represents repeated byte sequences using references to earlier data. The compression level controls how much work the encoder spends searching for matches. A larger window can increase memory use.
-- **Lossless verification.** MonaZip includes a checksum in its Zstandard frames. During a comparison it decompresses every measured archive and compares the result byte for byte with the source. Saving and restoring use a temporary file and publish the result to a new path after the operation succeeds.
+- **Lossless verification.** MonaZip includes a checksum in its Zstandard frames. JPEG XL stores JPEG reconstruction metadata. During a comparison it decompresses every measured archive and compares the result byte for byte with the source. Saving and restoring use a temporary file and publish the result to a new path after the operation succeeds.
 - **Real format comparisons.** gzip and single-entry ZIP use DEFLATE level 6. When the official `rar` executable is available, MonaZip also creates a RAR5 archive at level 3 with one worker. Size includes archive headers. Compression time includes reading the source and writing the temporary archive. Decompression time includes the byte comparison. RAR timings also include launching the external process.
 - **Experimental block encoding.** The CLI research mode samples block sizes and looks for useful distances between related bytes. It tries reversible transforms such as delta encoding, XOR, transposition, and bit shuffling. It chooses the smallest measured representation for each block, including metadata, then decodes the result and checks it against the source. [Research notes](MonaZip-PROJECT.md)
 
@@ -32,6 +42,10 @@ The desktop interface uses Tauri and React with TypeScript. The desktop app and 
 # Create a verified archive
 ./target/release/monazip database.sqlite --compress-to database.sqlite.zst
 
+# Save or restore a byte-exact JPEG XL archive when JPEG XL wins
+./target/release/monazip image.jpg --compress-to image.jpg.jxl
+./target/release/monazip image.jpg.jxl --extract-to restored.jpg
+
 # Restore the original bytes
 ./target/release/monazip database.sqlite.zst --extract-to restored.sqlite
 
@@ -39,7 +53,7 @@ The desktop interface uses Tauri and React with TypeScript. The desktop app and 
 ./target/release/monazip --experimental sample.bin --block-size 65536 --fixed-strides
 ```
 
-`--compress-to` runs Zstandard encoding and verification directly. Add `--json` or `--output report.json` to run and report the other format comparisons too. Use `--zstd-level` to choose a compression level. Press **Ctrl+C** to cancel compression, verification, or extraction.
+With a `.zst` output path, `--compress-to` runs Zstandard encoding and verification directly. A `.jxl` output path runs the comparison and saves the archive if JPEG XL is selected. For a `.zst` output path, add `--json` or `--output report.json` to run and report the other format comparisons too. Use `--zstd-level` to choose a compression level. Press **Ctrl+C** to cancel compression, verification, or extraction.
 
 For RAR5 comparisons, install the official `rar` executable. MonaZip searches common install locations and the system path. Set `MONAZIP_RAR_PATH=/absolute/path/to/rar` to specify a different executable. The report shows RAR availability. [RARLAB downloads](https://www.rarlab.com/download.htm)
 

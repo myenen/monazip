@@ -4,6 +4,7 @@ mod codec;
 pub mod extract;
 pub mod focused;
 mod geometry;
+mod jpegxl;
 mod models;
 mod optimizer;
 mod rar;

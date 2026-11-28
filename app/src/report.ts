@@ -1,6 +1,6 @@
 export type FileInfo = { name: string; path: string; size: number };
 export type ExtractionReport = { compressed_bytes: number; restored_bytes: number; elapsed_ms: number };
-export type Format = "zstd" | "gzip" | "zip" | "rar";
+export type Format = "zstd" | "jpeg_xl" | "gzip" | "zip" | "rar";
 export type ZstdTuning = "standard" | "parallel" | "parallel_long";
 export type Progress = {
   format: Format;
@@ -8,6 +8,7 @@ export type Progress = {
   processed_bytes: number;
   total_bytes: number;
   format_count: number;
+  format_index: number;
 };
 export type Measurement = {
   format: Format;
@@ -17,7 +18,9 @@ export type Measurement = {
   verify_us: number;
 };
 export type Report = {
-  kind: "sqlite" | "text";
+  kind: keyof typeof fileKinds;
+  archive_extension: "zst" | "jxl";
+  jpeg_xl_trial: Measurement | null;
   original_bytes: number;
   monazip: Measurement;
   zstd_tuning: ZstdTuning;
@@ -39,7 +42,8 @@ const percentage = new Intl.NumberFormat("tr-TR", { style: "percent", maximumFra
 export const number = (value: number) => decimal.format(value);
 export const bytes = (value: number) => `${integer.format(value)} B`;
 export const percent = (value: number | null) => value === null ? "—" : percentage.format(value / 100);
-export const formats = { zstd: "MonaZip (.zst)", gzip: "gzip (.gz)", zip: "ZIP (.zip)", rar: "RAR (.rar)" };
+export const formats = { zstd: "MonaZip (.zst)", jpeg_xl: "MonaZip (JPEG XL)", gzip: "gzip (.gz)", zip: "ZIP (.zip)", rar: "RAR (.rar)" };
+export const fileKinds = { sqlite: "SQLite", text: "Metin dosyası", jpeg: "JPEG", png: "PNG", webp: "WebP", gif: "GIF", bmp: "BMP", tiff: "TIFF" };
 export const tuningLabels = {
   standard: "",
   parallel: "2 iş parçacığı",

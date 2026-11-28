@@ -1,8 +1,10 @@
 use clap::Parser;
 use monazip_core::{
     AnalysisError, Options, Phase, analyze,
-    extract::extract_zstd,
-    focused::{FocusProgress, RarStatus, Stage, analyze_focused, compress_focused},
+    extract::extract_archive,
+    focused::{
+        FocusProgress, RarStatus, Stage, analyze_focused, analyze_focused_zstd, compress_focused,
+    },
 };
 
 use std::{
@@ -19,18 +21,18 @@ use std::{
 #[derive(Parser)]
 #[command(
     version,
-    about = "SQLite ve metin dosyalarını gzip, ZIP ve RAR ile karşılaştırarak sıkıştırır."
+    about = "SQLite, metin ve görsel dosyalarını sıkıştırır ve arşivleri karşılaştırır."
 )]
 struct Args {
-    /// Kaynak dosya veya açılacak .zst arşivi
+    /// Kaynak dosya veya açılacak arşiv
     input: PathBuf,
     /// Önceki blok tabanlı araştırma modunu kullan
     #[arg(long)]
     experimental: bool,
-    /// Doğrulanmış .zst çıktısını yeni dosyaya kaydet
+    /// Doğrulanmış .zst veya JPEG XL çıktısını yeni dosyaya kaydet
     #[arg(long, value_name = "PATH", conflicts_with = "experimental")]
     compress_to: Option<PathBuf>,
-    /// Zstd arşivini yeni bir dosyaya aç
+    /// Arşivi yeni bir dosyaya aç
     #[arg(long, value_name = "PATH", conflicts_with_all = ["experimental", "compress_to", "zstd_level", "output"])]
     extract_to: Option<PathBuf>,
     /// Sabit blok boyutu (bayt). Boş bırakıldığında otomatik seçilir.
@@ -77,9 +79,9 @@ fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     ctrlc::set_handler(move || signal.store(true, Ordering::Relaxed))?;
     if let Some(path) = &args.extract_to {
         if !args.quiet {
-            eprintln!("Zstd arşivi açılıyor");
+            eprintln!("Arşiv açılıyor");
         }
-        let report = extract_zstd(&args.input, path, |_| {}, &cancel)?;
+        let report = extract_archive(&args.input, path, |_| {}, &cancel)?;
         let mut stdout = io::stdout().lock();
         if args.json {
             serde_json::to_writer_pretty(&mut stdout, &report)?;
@@ -210,7 +212,14 @@ fn run_focused(args: &Args, cancel: &AtomicBool) -> Result<(), Box<dyn std::erro
             eprintln!("{stage} · {}", progress.format.name());
         }
     };
+    let jpeg_xl_requested = args
+        .compress_to
+        .as_ref()
+        .and_then(|path| path.extension())
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("jxl"));
     if let Some(path) = &args.compress_to
+        && !jpeg_xl_requested
         && !args.json
         && args.output.is_none()
     {
@@ -224,7 +233,11 @@ fn run_focused(args: &Args, cancel: &AtomicBool) -> Result<(), Box<dyn std::erro
         )?;
         return Ok(());
     }
-    let result = analyze_focused(&args.input, level, notify, cancel)?;
+    let result = if args.compress_to.is_some() && !jpeg_xl_requested {
+        analyze_focused_zstd(&args.input, level, notify, cancel)?
+    } else {
+        analyze_focused(&args.input, level, notify, cancel)?
+    };
     if let Some(path) = &args.compress_to {
         result.save_archive(path)?;
     }
@@ -238,6 +251,7 @@ fn run_focused(args: &Args, cancel: &AtomicBool) -> Result<(), Box<dyn std::erro
         writeln!(stdout)?;
     } else {
         writeln!(stdout, "Kaynak · {} bayt", report.original_bytes)?;
+        writeln!(stdout, "Seçilen arşiv · .{}", report.archive_extension)?;
         for row in [&report.monazip, &report.gzip, &report.zip]
             .into_iter()
             .chain(&report.rar)

@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use monazip_core::extract::{ExtractionReport, extract_zstd};
+use monazip_core::extract::{ExtractionReport, extract_archive as restore_archive};
 use monazip_core::focused::{
     FocusProgress, FocusReport, FocusResult, ZstdTuning, analyze_focused_with_tuning,
 };
@@ -117,7 +117,7 @@ async fn extract_archive(
     let cancel = begin_operation(&state)?;
     let result = tauri::async_runtime::spawn_blocking(move || {
         let mut last = Instant::now();
-        extract_zstd(
+        restore_archive(
             path,
             destination,
             |restored| {

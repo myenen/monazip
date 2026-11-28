@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { bytes, formats, number, percent, tuningLabels, type ExtractionReport, type FileInfo, type Progress, type Report } from "./report";
+import { bytes, fileKinds, formats, number, percent, tuningLabels, type ExtractionReport, type FileInfo, type Progress, type Report } from "./report";
 import "./style.css";
 
 function Metric({ label, value }: { label: string; value: string }) {
@@ -32,7 +32,7 @@ function Comparison({ report }: { report: Report }) {
     <section className="panel chart" aria-label="Dosya boyutu karşılaştırması">
       <div className="panel-heading">
         <h2>Dosya boyutları</h2>
-        <span>{report.kind === "sqlite" ? "SQLite" : "Metin dosyası"}</span>
+        <span>{fileKinds[report.kind]}</span>
       </div>
       {series.map(({ label, size, color }) => <div className="bar-row" key={color}>
         <span>{label}</span><div className="track"><div className={color} style={{ width: `${size / max * 100}%` }} /></div>
@@ -46,7 +46,7 @@ function Comparison({ report }: { report: Report }) {
         <tbody>{measurements.map((item) => <tr key={item.format}>
           <td>{formats[item.format]}{item.format === "zstd" && report.zstd_tuning !== "standard" &&
             <small className="tuning-label">{tuningLabels[report.zstd_tuning]}</small>}</td>
-          <td>{item.level}</td>
+          <td>{item.format === "jpeg_xl" ? `Efor ${item.level}` : item.level}</td>
           <td>{number(item.compress_us / 1000)} ms</td><td>{number(item.verify_us / 1000)} ms</td>
         </tr>)}</tbody>
       </table></div>
@@ -110,7 +110,7 @@ function App() {
 
   async function chooseFile() {
     try {
-      const path = await open({ multiple: false, directory: false, title: "SQLite veya metin dosyası seçin" });
+      const path = await open({ multiple: false, directory: false, title: "SQLite, metin veya görsel dosyası seçin" });
       if (path) await select(path);
     } catch (reason) { setError(String(reason)); }
   }
@@ -160,14 +160,17 @@ function App() {
     setNotice("");
     try {
       const path = await open({
-        multiple: false, directory: false, title: "Açılacak Zstd arşivini seçin",
-        filters: [{ name: "Zstandard", extensions: ["zst", "zstd"] }],
+        multiple: false, directory: false, title: "Açılacak arşivi seçin",
+        filters: [{ name: "MonaZip arşivleri", extensions: ["zst", "zstd", "jxl"] }],
       });
       if (!path) return;
-      const suggested = path.replace(/\.(zst|zstd)$/i, "");
+      const isJpegXl = /\.jxl$/i.test(path);
+      let suggested = path.replace(/\.(zst|zstd|jxl)$/i, "");
+      if (suggested === path || /[\\/]$/.test(suggested)) suggested = "acilan-dosya";
+      if (isJpegXl && !/\.jpe?g$/i.test(suggested)) suggested += ".jpg";
       const destination = await save({
         title: "Açılan dosyanın konumunu seçin",
-        defaultPath: suggested === path || /[\\/]$/.test(suggested) ? "acilan-dosya" : suggested,
+        defaultPath: suggested,
       });
       if (!destination) return;
 
@@ -206,10 +209,14 @@ function App() {
     setError("");
     setNotice("");
     try {
-      const path = await save({ defaultPath: `${file?.name ?? "monazip"}.zst`, filters: [{ name: "Zstandard", extensions: ["zst"] }] });
+      const extension = report.archive_extension;
+      const path = await save({
+        defaultPath: `${file?.name ?? "monazip"}.${extension}`,
+        filters: [{ name: extension === "jxl" ? "JPEG XL" : "Zstandard", extensions: [extension] }],
+      });
       if (!path) return;
       await invoke("save_archive", { path });
-      setNotice(`Doğrulanmış .zst kaydedildi · ${bytes(report.monazip.bytes)} · ${path}`);
+      setNotice(`Doğrulanmış .${extension} kaydedildi · ${bytes(report.monazip.bytes)} · ${path}`);
     } catch (reason) {
       setError(String(reason));
     } finally {
@@ -218,26 +225,26 @@ function App() {
   }
 
   const phaseFraction = progress && progress.total_bytes > 0 ? progress.processed_bytes / progress.total_bytes : 0;
-  const formatIndex = progress ? ["zstd", "gzip", "zip", "rar"].indexOf(progress.format) : 0;
+  const formatIndex = progress?.format_index ?? 0;
   const stageIndex = progress?.stage === "verifying" ? 1 : 0;
   const progressPercent = (formatIndex * 2 + stageIndex + phaseFraction) / ((progress?.format_count ?? 3) * 2) * 100;
   const phaseLabel = progress ? `${formats[progress.format]} · ${stageIndex ? "Doğrulanıyor" : "Sıkıştırılıyor"}` : "Dosya okunuyor";
   return <div className="shell">
     <header className="topbar">
       <div className="brand"><span className="brand-icon" aria-hidden="true"><i /><i /><i /><i /></span><span>MonaZip</span></div>
-      <button className="secondary" disabled={running} onClick={openArchive}>.zst aç</button>
+      <button className="secondary" disabled={running} onClick={openArchive}>Arşiv aç</button>
     </header>
     <main>
       <section className="hero">
-        <h1>Veritabanı ve Metin Sıkıştırma</h1>
-        <p>SQLite ve metin dosyalarını kayıpsız sıkıştır. Boyut ve süreyi gzip, ZIP ve RAR ile karşılaştır.</p>
+        <h1>Dosya Sıkıştırma</h1>
+        <p>SQLite, metin ve görselleri kayıpsız sıkıştır. Boyut ve süreyi gzip, ZIP ve RAR ile karşılaştır.</p>
       </section>
       <section className={`input-panel ${dragging ? "dropping" : ""}`} aria-label="Dosya ve analiz ayarları">
         <div className="file-area">
           <span className="file-icon" aria-hidden="true"><i /></span>
           <div className="file-label">
-            <strong title={file?.path}>{file?.name ?? "SQLite veya metin dosyası bırak"}</strong>
-            <span>{file ? bytes(file.size) : "TXT, SQL, CSV, JSON, LOG ve diğer metin biçimleri."}</span>
+            <strong title={file?.path}>{file?.name ?? "SQLite, metin veya görsel dosyası bırak"}</strong>
+            <span>{file ? bytes(file.size) : "JPEG, PNG, GIF, WebP, BMP, TIFF ve yaygın metin biçimleri."}</span>
           </div>
           <button className="secondary" disabled={running} onClick={chooseFile}>{file ? "Değiştir" : "Dosya seç"}</button>
         </div>
@@ -255,7 +262,7 @@ function App() {
       {error && <p className="message error" role="alert">{error}</p>}
       {notice && <p className="message" role="status">{notice}</p>}
       {running && <section className="panel progress-panel" aria-live="polite">
-        <div className="panel-heading"><h2>{operation === "extract" ? "Zstd arşivi açılıyor" : phaseLabel}</h2><span>{number(elapsed)} sn</span></div>
+        <div className="panel-heading"><h2>{operation === "extract" ? "Arşiv açılıyor" : phaseLabel}</h2><span>{number(elapsed)} sn</span></div>
         {operation === "extract" ? <p>{bytes(restored ?? 0)} geri açıldı</p> : <>
           <progress aria-label="Analiz ilerlemesi" max={100} value={progressPercent} />
           <p>{bytes(progress?.processed_bytes ?? 0)} / {bytes(progress?.total_bytes ?? file?.size ?? 0)}</p>
@@ -274,7 +281,7 @@ function App() {
           </div>
           {report.verified && <span className="verified" role="status">✓ Birebir doğrulandı</span>}
           <button className="secondary" disabled={running} onClick={exportJson}>JSON kaydet</button>
-          <button className="primary" disabled={running} onClick={exportArchive}>.zst kaydet</button>
+          <button className="primary" disabled={running} onClick={exportArchive}>.{report.archive_extension} kaydet</button>
         </div>
         {tab === "comparison" && <Comparison report={report} />}
         {tab === "json" && <pre className="panel json">{JSON.stringify(report, null, 2)}</pre>}

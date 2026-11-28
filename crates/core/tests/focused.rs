@@ -92,3 +92,27 @@ fn verifies_all_formats_against_unchanged_source() {
     );
     assert!(matches!(result, Err(AnalysisError::SourceChanged)));
 }
+
+#[test]
+fn identifies_images_before_text_extensions_and_restores_png_bytes() {
+    use monazip_core::{
+        extract::extract_archive,
+        focused::{ZstdTuning, analyze_focused_with_tuning},
+    };
+
+    let workspace = tempfile::tempdir().unwrap();
+    let path = workspace.path().join("image.txt");
+    let bytes = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x04\x00\x00\x00\xb5\x1c\x0c\x02\x00\x00\x00\x0bIDAT\x78\xda\x63\xfc\xff\x1f\x00\x03\x03\x02\x00\xef\xbf\x9a\xe7\x00\x00\x00\x00IEND\xae\x42\x60\x82";
+    fs::write(&path, bytes).unwrap();
+    let cancel = AtomicBool::new(false);
+    let result =
+        analyze_focused_with_tuning(&path, 9, ZstdTuning::ParallelLong, |_| {}, &cancel).unwrap();
+    assert!(matches!(result.report.kind, FileKind::Png));
+    assert_eq!(result.report.monazip.level, 3);
+    assert_eq!(result.report.archive_extension, "zst");
+    let archive = workspace.path().join("image.png.zst");
+    let restored = workspace.path().join("restored.png");
+    result.save_archive(&archive).unwrap();
+    extract_archive(&archive, &restored, |_| {}, &cancel).unwrap();
+    assert_eq!(fs::read(restored).unwrap(), bytes);
+}

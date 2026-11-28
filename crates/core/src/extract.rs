@@ -1,8 +1,8 @@
-use crate::{AnalysisError, block, check_cancel, unchanged};
+use crate::{AnalysisError, block, check_cancel, jpegxl, unchanged};
 use serde::Serialize;
 use std::{
     fs::File,
-    io::{self, BufWriter, Write},
+    io::{self, BufReader, BufWriter, Read, Seek, Write},
     path::Path,
     sync::atomic::AtomicBool,
     time::Instant,
@@ -25,13 +25,36 @@ fn output_exists() -> io::Error {
 pub fn extract_zstd(
     input: impl AsRef<Path>,
     destination: impl AsRef<Path>,
+    progress: impl FnMut(u64),
+    cancel: &AtomicBool,
+) -> Result<ExtractionReport, AnalysisError> {
+    extract(
+        input.as_ref(),
+        destination.as_ref(),
+        progress,
+        cancel,
+        false,
+    )
+}
+
+pub fn extract_archive(
+    input: impl AsRef<Path>,
+    destination: impl AsRef<Path>,
+    progress: impl FnMut(u64),
+    cancel: &AtomicBool,
+) -> Result<ExtractionReport, AnalysisError> {
+    extract(input.as_ref(), destination.as_ref(), progress, cancel, true)
+}
+
+fn extract(
+    input: &Path,
+    destination: &Path,
     mut progress: impl FnMut(u64),
     cancel: &AtomicBool,
+    allow_jpeg_xl: bool,
 ) -> Result<ExtractionReport, AnalysisError> {
     check_cancel(cancel)?;
     let started = Instant::now();
-    let input = input.as_ref();
-    let destination = destination.as_ref();
     let before = input.metadata()?;
     if !before.is_file() {
         return Err(AnalysisError::NotAFile);
@@ -39,7 +62,7 @@ pub fn extract_zstd(
     if destination.symlink_metadata().is_ok() {
         return Err(output_exists().into());
     }
-    let source = File::open(input)?;
+    let mut source = File::open(input)?;
     if !unchanged(&before, &source.metadata()?) {
         return Err(AnalysisError::SourceChanged);
     }
@@ -49,16 +72,43 @@ pub fn extract_zstd(
         .unwrap_or(Path::new("."));
     let mut output = tempfile::NamedTempFile::new_in(directory)?;
 
+    let mut signature = [0; 12];
+    let is_jpeg_xl = allow_jpeg_xl
+        && block::fill(&mut source, &mut signature)? == signature.len()
+        && (&signature == jpegxl::CONTAINER_SIGNATURE || signature.starts_with(b"\xff\x0a"));
+    source.rewind()?;
     let decoded = (|| {
-        let mut decoder = zstd::stream::read::Decoder::new(&source)?;
+        progress(0);
+        let decoded_jpeg;
+        let mut decoder: Box<dyn Read> = if is_jpeg_xl {
+            if !destination
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .is_some_and(|ext| {
+                    ext.eq_ignore_ascii_case("jpg") || ext.eq_ignore_ascii_case("jpeg")
+                })
+            {
+                return Err(AnalysisError::InvalidOptions(
+                    "Geri açılan JPEG için .jpg veya .jpeg uzantılı bir hedef seçin.",
+                ));
+            }
+            let tool = jpegxl::decoder().ok_or(AnalysisError::InvalidOptions(
+                "JPEG XL arşivini açmak için djxl aracı gerekli.",
+            ))?;
+            decoded_jpeg = tempfile::tempdir()?;
+            let path = decoded_jpeg.path().join("restored.jpg");
+            jpegxl::reconstruct(&tool, source.try_clone()?, &path, cancel)?;
+            Box::new(BufReader::new(File::open(path)?))
+        } else {
+            Box::new(zstd::stream::read::Decoder::new(&source)?)
+        };
         let mut writer = BufWriter::new(&mut output);
         let mut buffer = vec![0; 128 * 1024];
         let mut restored_bytes = 0;
-        progress(0);
         loop {
             check_cancel(cancel)?;
             let count = block::fill(&mut decoder, &mut buffer).map_err(|error| {
-                io::Error::new(error.kind(), format!("Zstd arşivi açılamadı ({error})."))
+                io::Error::new(error.kind(), format!("Arşiv açılamadı ({error})."))
             })?;
             if count == 0 {
                 break;
